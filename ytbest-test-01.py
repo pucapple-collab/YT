@@ -8,21 +8,17 @@ import statistics
 import random
 import time
 
-# --- [설정] API 키 관리 (자동 전환 시스템) ---
-API_KEYS = [
-    "AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", 
-    "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"
-]
-
+# --- [설정] API 키 관리 ---
+API_KEYS = ["AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"]
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
-st.set_page_config(page_title="Trend Lead SENA", layout="wide")
+st.set_page_config(page_title="Team SENA: Trend Report", layout="wide")
 
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
-# --- CSS 디자인 (프레임 최적화 및 세나 리포트 스타일) ---
+# --- CSS 디자인 (세나 팀장 스타일) ---
 st.markdown("""
 <style>
     .video-card { 
@@ -39,29 +35,33 @@ st.markdown("""
     .status-steady { background-color: #e3f2fd; color: #1565c0; }
     .v-insight-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 0.82rem; border-left: 4px solid #1a73e8; margin-top: 5px; }
     
-    .report-container { background-color: #1a1c1e; color: #e1e1e1; padding: 35px; border-radius: 20px; margin-top: 40px; border: 1px solid #333; }
-    .report-header { font-size: 1.7rem; font-weight: 900; color: #ffeb3b; border-bottom: 2px solid #ffeb3b; padding-bottom: 10px; margin-bottom: 25px; }
-    .section-title { font-size: 1.2rem; font-weight: bold; color: #4dabf7; margin-top: 25px; margin-bottom: 12px; }
-    .section-content { background: #25282c; padding: 18px; border-radius: 12px; line-height: 1.8; font-size: 0.95rem; color: #eee; }
-    .expert-tip { background-color: #d32f2f; color: white; padding: 15px; border-radius: 10px; font-weight: bold; margin-top: 30px; text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; color: #eee; }
-    th, td { border: 1px solid #444; padding: 10px; text-align: center; }
+    /* 세나 팀장 리포트 컨테이너 */
+    .report-container { background-color: #121212; color: #e0e0e0; padding: 35px; border-radius: 15px; margin-top: 50px; border: 2px solid #ff4b4b; }
+    .report-header { font-size: 1.8rem; font-weight: 900; color: #ff4b4b; border-bottom: 3px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 20px; }
+    .report-sub { font-size: 1rem; color: #888; margin-bottom: 30px; }
+    .section-title { font-size: 1.2rem; font-weight: bold; color: #ffeb3b; margin-top: 25px; margin-bottom: 10px; display: flex; align-items: center; }
+    .section-content { background: #1e1e1e; padding: 20px; border-radius: 10px; line-height: 1.8; font-size: 0.95rem; color: #ddd; border: 1px solid #333; }
+    .expert-tip { background-color: #ff4b4b; color: white; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: 30px; text-align: center; font-size: 1.1rem; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #252525; }
+    th, td { border: 1px solid #444; padding: 12px; text-align: center; }
     th { background-color: #333; color: #ffeb3b; }
+    .highlight-text { color: #ffeb3b; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
 def show_ad(pos):
     ads = {
         "sidebar": {"img": "https://via.placeholder.com/300x250.png?text=SIDEBAR+AD", "link": "#"},
-        "top": {"img": "https://via.placeholder.com/468x60.png?text=TOP+AD", "link": "#"},
+        "top": {"img": "https://via.placeholder.com/468x60.png?text=TOP+BANNER", "link": "#"},
         "bottom": {"img": "https://via.placeholder.com/300x250.png?text=REPORT+AD", "link": "#"}
     }
     ad = ads.get(pos)
-    st.markdown(f'<div style="text-align:right; margin-bottom:10px;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px;"></a><p style="font-size:9px; color:#999; margin:0;">ADVERTISEMENT</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:right;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px;"></a></div>', unsafe_allow_html=True)
 
-col_t1, col_t2 = st.columns([3, 1])
-with col_t1: st.title("📡 글로벌 트렌드 인텔리전스 (Deep Scan)")
-with col_t2: show_ad("top")
+# 상단 헤더
+t1, t2 = st.columns([3, 1])
+with t1: st.title("📡 글로벌 트렌드 인텔리전스 (Deep Scan)")
+with t2: show_ad("top")
 
 translator = Translator()
 
@@ -83,54 +83,73 @@ def is_strictly_non_us(title, channel):
     scripts = [re.compile(r'[\u0900-\u097F]+'), re.compile(r'[\u0E00-\u0E7F]+'), re.compile(r'[\u0600-\u06FF]+')]
     combined = title + " " + channel
     if any(s.search(combined) for s in scripts): return True
-    blacklist = ['india', 'hindi', 'bollywood', 't-series', 'zeemusic', 'thai', 'vietnam']
+    blacklist = ['india', 'hindi', 'bollywood', 't-series', 'zeemusic']
     return any(k in combined.lower() for k in blacklist)
 
 def calculate_v_point(views, likes, comments):
     if views == 0: return 0
+    # 주현님이 요청하신 Viral Point 공식 적용
     return int((views * 0.001) * (1 + (likes/views*10) + (comments/views*50)))
 
+# --- [팀장 '세나'의 마케팅 실행 리포트 엔진] ---
 def generate_sena_report(region_name, video_type, results, keywords):
     if not results: return ""
     avg_views = statistics.mean([v['view_raw'] for v in results])
     avg_viral = statistics.mean([v['v_point'] for v in results])
     top_k = [k for k, c in Counter(keywords).most_common(3)]
-    keyword_str = ", ".join(top_k)
     
-    return f"""
+    # 세나 팀장의 날카로운 분석 로직
+    feasibility = "매우 높음. 스마트폰 한 대로 1시간 내 제작 가능. 편집 효율이 곧 수익인 구조야." if "Shorts" in video_type else "중간 이상. 탄탄한 스크립트와 자료화면 편집 인력이 필요해. 기획에 공 좀 들여야 할 걸?"
+    
+    html = f"""
     <div class="report-container">
-        <div class="report-header">📑 TEAM SENA : 2026 {region_name} 트렌드 분석 리포트</div>
-        <div class="report-sub">작성자: 세나 (10년 차 콘텐츠 전략 팀장) | 데이터 기반 의사결정</div>
-        <div class="section-title">1. [데이터 추출] 핵심 수치 도출</div>
+        <div class="report-header">🚩 세나 팀장의 현장형 실행 리포트</div>
+        <div class="report-sub">2026 {region_name} {video_type} 시장 | 데이터 기반 의사결정 완료</div>
+        
+        <div class="section-title">📊 1. [데이터 추출] 현장 지표 체크</div>
         <div class="section-content">
-            현장 데이터 바로 까보자. 지금 이 시장은 <b>'{top_k[0] if top_k else '트렌드'}'</b>가 다 씹어먹고 있어.
+            자, 데이터부터 깔끔하게 정리해줄게. 지금 이 바닥에서 '알고리즘 간택' 받으려면 이 정도 숫자는 나와야 해.
             <table>
-                <tr><th>평균 조회수</th><th>평균 Viral Point</th><th>주요 키워드</th></tr>
-                <tr><td>{int(avg_views):,}회</td><td>{int(avg_viral):,}점</td><td>{keyword_str}</td></tr>
+                <tr><th>평균 트래픽(조회수)</th><th>평균 바이럴 강도(Viral Point)</th><th>핵심 후킹 키워드</th></tr>
+                <tr><td>{int(avg_views):,}회</td><td>{int(avg_viral):,}점</td><td>{", ".join(top_k)}</td></tr>
             </table>
+            <br>특히 이번 리스트에서 <span class="highlight-text">Viral Point</span>가 튀는 애들은 조회수보다 <b>댓글 반응(인게이지먼트)</b>이 깡패라는 거 잊지 마.
         </div>
-        <div class="section-title">2. [SWOT 분석] 전략적 판세</div>
+
+        <div class="section-title">🛠️ 2. [콘텐츠 제작 가능성] 당장 만들 수 있어?</div>
         <div class="section-content">
-            • <b>Strength:</b> {int(avg_viral):,}점대의 높은 인게이지먼트로 알고리즘 점유율 최상단 확보.<br>
-            • <b>Weakness:</b> 경쟁 콘텐츠 과열로 3초 내 훅(Hook) 없으면 바로 이탈.<br>
-            • <b>Opportunity:</b> '{top_k[0]}' 소재 기반 챌린지 및 리믹스 확산 가능성 농후.<br>
-            • <b>Threat:</b> 유사 포맷 무한 복제로 인한 유저 피로도 상승 주의.
+            솔직히 말할게. 이 트렌드는 <b>{feasibility}</b> <br>
+            • <b>기술적 난이도:</b> 하(Low). 핵심은 퀄리티가 아니라 "{top_k[0]}" 소재를 얼마나 빨리 선점하느냐야.<br>
+            • <b>비용 예측:</b> 기존 소스 재가공(Remix)만 잘해도 제작비 0원으로 떡상 가능해.
         </div>
-        <div class="section-title">3. [시청자 반응 예측] 왜 보는 걸까?</div>
+
+        <div class="section-title">🗨️ 3. [실제 시청자 반응 예측] 왜 댓글 전쟁터가 됐을까?</div>
         <div class="section-content">
-            시청자들은 지금 <b>'{top_k[0]}'</b>에 대해 "진짜 소름 돋는다", "나만 알고 싶다" 같은 <b>강한 소속감과 경탄</b> 위주로 반응해. 
-            3초 후킹 성공 영상들이 상위권을 싹쓸이 중이고, 타겟 팬덤 결집력이 트렌드를 견인하는 핵심이야.
+            수집된 영상들의 Viral Point를 보니까, 시청자들은 <b>"{top_k[0]}"</b>에 대해 단순히 보는 게 아니라 <b>'자신의 의견을 남기고 싶어서'</b> 근질근질해하고 있어.<br>
+            👉 <b>심리 분석:</b> 시청자는 3초 내에 본인과 관련된 이야기라고 느끼면 바로 댓글창으로 달려가. 지금 상위권 영상들은 전부 <b>'공감'</b> 아니면 <b>'논쟁'</b>을 교묘하게 건드리고 있어.
         </div>
-        <div class="section-title">4. [실행 전략] 6하원칙 기획안</div>
+
+        <div class="section-title">🛡️ 4. [보안 검토 및 추천] 리스크는 피하고 우위는 점하자</div>
         <div class="section-content">
-            내일 당장 이거 찍어와.<br>
-            • <b>Who:</b> {region_name} MZ/알파 타겟 | • <b>When:</b> 주말 저녁 골든타임 업로드<br>
-            • <b>Where:</b> 자극적 자막 + 9:16 세로형 | • <b>What:</b> '{top_k[0]}' 관련 시각적 반전 요소<br>
-            • <b>How:</b> 도입 1초에 결론부터 박는 '역순 구성' | • <b>Why:</b> Viral Point 1위 콘텐츠의 성공 방정식
+            • <b>보안/저작권:</b> '{top_k[0]}' 관련 해외 소스 쓸 때 출처 표기 명확히 하고, 가급적 독자적인 자막 레이아웃으로 IP 리스크 피해가자.<br>
+            • <b>우위 전략:</b> 경쟁사들이 단순히 영상만 올릴 때, 너는 <b>고정 댓글로 '질문'</b>을 던져서 댓글 점수를 강제로 끌어올려. 그게 Viral Point 핵심이니까.
         </div>
-        <div class="expert-tip">💡 전문가 팁: "{top_k[0]} 키워드가 현재 깡패야. 제목 맨 앞에 안 박으면 노출도 안 된다!"</div>
+
+        <div class="section-title">📝 5. [6하원칙 기획안] 내일 당장 찍어!</div>
+        <div class="section-content">
+            딴소리 말고 이대로만 해.<br>
+            • <b>Who:</b> {region_name} 내 {top_k[0]}에 반응하는 핵심 타겟군<br>
+            • <b>When:</b> 데이터 리셋 직후인 주말 저녁 알고리즘 피크 타임<br>
+            • <b>Where:</b> {video_type} 전용 숏폼 탭 혹은 추천 피드<br>
+            • <b>What:</b> '{top_k[0]}'와 '{top_k[1]}'의 대결 구도 혹은 반전 결과물<br>
+            • <b>How:</b> 첫 1초에 자막으로 "절대 하지 마세요" 혹은 "충격 주의" 박고 시작<br>
+            • <b>Why:</b> 현재 Viral Point 1위가 이 방식으로 인게이지먼트 싹쓸이 중임
+        </div>
+
+        <div class="expert-tip">💡 10년 차 세나 팀장의 한 줄 팁: "바이럴은 조회수가 만드는 게 아니라 댓글이 만드는 거야. 시청자를 화나게 하든, 감동시키든 일단 키보드를 잡게 해!"</div>
     </div>
     """
+    return html
 
 def fetch_videos(topic_text, v_type, r_info, v_count):
     youtube = get_youtube_client()
@@ -139,7 +158,6 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     
     collected = []
     next_token = None
-    # [딥 스캔] 수량 확보를 위해 최대 400개까지 탐색
     for _ in range(8):
         try:
             if not is_popular_mode:
@@ -148,7 +166,8 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
                 req = youtube.search().list(part="snippet", q=f"{trans_q} {'#shorts' if is_shorts else ''}", type="video", videoDuration="short" if is_shorts else "any", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
             else:
                 if is_shorts:
-                    req = youtube.search().list(part="snippet", q=f"#shorts", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
+                    country_kw = {"KR": "쇼츠", "US": "Shorts", "JP": "ショート"}
+                    req = youtube.search().list(part="snippet", q=f"#shorts {country_kw.get(r_info['code'], '')}", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
                 else:
                     req = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=r_info['code'], maxResults=50, pageToken=next_token)
             
@@ -160,7 +179,6 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
             if "quotaExceeded" in str(e): raise e
             break
 
-    # [수정] ID 추출 로직 오류(item -> i) 수정
     v_ids = []
     for i in collected:
         if 'id' in i:
@@ -218,7 +236,7 @@ region_name = st.sidebar.selectbox("📍 타겟 시장", list(region_map.keys())
 sel_region = region_map[region_name]
 video_type = st.sidebar.radio("📱 콘텐츠 포맷", ["롱폼 (2분 이상)", "숏폼 (Shorts)"])
 count = st.sidebar.slider("🔢 분석 샘플", 1, 30, 8)
-topic = st.sidebar.text_input("🔍 키워드/주제", placeholder="공란: 국가별 트렌드 수집")
+topic = st.sidebar.text_input("🔍 키워드/주제", placeholder="공란: 실시간 인기 수집")
 search_clicked = st.sidebar.button("🚀 인사이트 분석 시작", use_container_width=True)
 
 st.sidebar.markdown("---")
@@ -226,11 +244,11 @@ with st.sidebar: show_ad("sidebar")
 
 # --- 결과 출력 ---
 if search_clicked or not topic:
-    with st.spinner('세나 팀장이 데이터를 딥 스캔하는 중... (최대 1분 소요)'):
+    with st.spinner('세나 팀장이 데이터 딥 스캔 중... (최대 1분 소요)'):
         try:
             final_res, acc, report = fetch_videos(topic, video_type, sel_region, count)
             st.subheader(f"📝 {region_name} {video_type} 분석 결과")
-            if not final_res: st.warning("데이터를 확보하지 못했습니다. 조건을 변경해 보세요.")
+            if not final_res: st.warning("데이터를 확보하지 못했습니다.")
             else:
                 grid = st.columns(4)
                 for idx, v in enumerate(final_res):
@@ -241,18 +259,23 @@ if search_clicked or not topic:
                             <a href="{v['url']}" target="_blank" class="thumb-link"><img src="{v['thumbnail']}"></a>
                             <div style="margin-top:10px;"><span class="v-status {s_class}">{v['status']}</span></div>
                             <div class="v-title">{v['title']}</div>
-                            <div class="v-meta"><b>{v['channel']}</b><br>조회수: {v['view_count']:,}회<br>공개일: {v['date']}</div>
+                            <div class="v-meta">
+                                <b>{v['channel']}</b><br>
+                                조회수: {v['view_count']:,}회<br>
+                                공개일: {v['date']}
+                            </div>
                             <div class="v-insight-box">🌐 <b>Viral Point:</b> <span class="stat-val">{v['v_point']:,}</span></div>
                         </div>
                         """, unsafe_allow_html=True)
+                # 세나 팀장의 정밀 리포트 출력
                 st.markdown(report, unsafe_allow_html=True)
-                c1, c2 = st.columns([3, 1]); 
+                c1, c2 = st.columns([3, 1])
                 with c2: show_ad("bottom")
         except Exception as e:
             if "quotaExceeded" in str(e):
                 if st.session_state.key_index < len(API_KEYS) - 1:
                     st.session_state.key_index += 1
-                    st.toast("🔄 1번 키 소진! 자동 키 전환 중...")
+                    st.toast("🔄 1번 키 소진! 자동 키 전환 중...", icon="🔄")
                     time.sleep(1)
                     st.rerun()
                 else: st.error("🚨 모든 할당량 소진.")
