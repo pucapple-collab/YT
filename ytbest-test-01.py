@@ -27,8 +27,8 @@ st.markdown("""
 <style>
     .video-card { 
         background-color: #ffffff; padding: 18px; border-radius: 12px; border: 1px solid #e0e0e0; 
-        margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); min-height: 600px; 
-        display: flex; flex-direction: column; 
+        margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
+        display: flex; flex-direction: column; height: 100%;
     }
     .thumb-link img { transition: transform 0.2s; border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
     .thumb-link img:hover { transform: scale(1.02); }
@@ -39,10 +39,8 @@ st.markdown("""
     .status-steady { background-color: #e3f2fd; color: #1565c0; }
     .v-insight-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 0.82rem; border-left: 4px solid #1a73e8; margin-top: 5px; }
     
-    /* 세나 팀장 리포트 컨테이너 */
-    .report-container { background-color: #1a1c1e; color: #e1e1e1; padding: 35px; border-radius: 20px; margin-top: 50px; border: 1px solid #333; }
+    .report-container { background-color: #1a1c1e; color: #e1e1e1; padding: 35px; border-radius: 20px; margin-top: 40px; border: 1px solid #333; }
     .report-header { font-size: 1.7rem; font-weight: 900; color: #ffeb3b; border-bottom: 2px solid #ffeb3b; padding-bottom: 10px; margin-bottom: 25px; }
-    .report-sub { font-size: 1rem; color: #aaa; margin-bottom: 20px; }
     .section-title { font-size: 1.2rem; font-weight: bold; color: #4dabf7; margin-top: 25px; margin-bottom: 12px; }
     .section-content { background: #25282c; padding: 18px; border-radius: 12px; line-height: 1.8; font-size: 0.95rem; color: #eee; }
     .expert-tip { background-color: #d32f2f; color: white; padding: 15px; border-radius: 10px; font-weight: bold; margin-top: 30px; text-align: center; }
@@ -52,20 +50,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 광고 함수 ---
 def show_ad(pos):
     ads = {
-        "sidebar": {"img": "https://via.placeholder.com/300x250.png?text=SIDEBAR+AD+SPACE", "link": "#"},
-        "top": {"img": "https://via.placeholder.com/468x60.png?text=TOP+BANNER+AD", "link": "#"},
-        "bottom": {"img": "https://via.placeholder.com/300x250.png?text=REPORT+BOTTOM+AD", "link": "#"}
+        "sidebar": {"img": "https://via.placeholder.com/300x250.png?text=SIDEBAR+AD", "link": "#"},
+        "top": {"img": "https://via.placeholder.com/468x60.png?text=TOP+AD", "link": "#"},
+        "bottom": {"img": "https://via.placeholder.com/300x250.png?text=REPORT+AD", "link": "#"}
     }
     ad = ads.get(pos)
-    st.markdown(f'<div style="text-align:right; margin-bottom:10px;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px; border:1px solid #ddd;"></a><p style="font-size:9px; color:#999; margin:0;">ADVERTISEMENT</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:right; margin-bottom:10px;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px;"></a><p style="font-size:9px; color:#999; margin:0;">ADVERTISEMENT</p></div>', unsafe_allow_html=True)
 
-# 상단 레이아웃 (광고 포함)
-t_col1, t_col2 = st.columns([3, 1])
-with t_col1: st.title("📡 글로벌 트렌드 인텔리전스 (Deep Scan)")
-with t_col2: show_ad("top")
+col_t1, col_t2 = st.columns([3, 1])
+with col_t1: st.title("📡 글로벌 트렌드 인텔리전스 (Deep Scan)")
+with col_t2: show_ad("top")
 
 translator = Translator()
 
@@ -87,14 +83,13 @@ def is_strictly_non_us(title, channel):
     scripts = [re.compile(r'[\u0900-\u097F]+'), re.compile(r'[\u0E00-\u0E7F]+'), re.compile(r'[\u0600-\u06FF]+')]
     combined = title + " " + channel
     if any(s.search(combined) for s in scripts): return True
-    blacklist = ['india', 'hindi', 'bollywood', 't-series', 'zeemusic']
+    blacklist = ['india', 'hindi', 'bollywood', 't-series', 'zeemusic', 'thai', 'vietnam']
     return any(k in combined.lower() for k in blacklist)
 
 def calculate_v_point(views, likes, comments):
     if views == 0: return 0
     return int((views * 0.001) * (1 + (likes/views*10) + (comments/views*50)))
 
-# --- [세나 팀장 페르소나 리포트 생성] ---
 def generate_sena_report(region_name, video_type, results, keywords):
     if not results: return ""
     avg_views = statistics.mean([v['view_raw'] for v in results])
@@ -102,51 +97,40 @@ def generate_sena_report(region_name, video_type, results, keywords):
     top_k = [k for k, c in Counter(keywords).most_common(3)]
     keyword_str = ", ".join(top_k)
     
-    html = f"""
+    return f"""
     <div class="report-container">
         <div class="report-header">📑 TEAM SENA : 2026 {region_name} 트렌드 분석 리포트</div>
-        <div class="report-sub">작성자: 세나 (10년 차 콘텐츠 전략 팀장) | 데이터 기반 의사결정 모드</div>
-        
+        <div class="report-sub">작성자: 세나 (10년 차 콘텐츠 전략 팀장) | 데이터 기반 의사결정</div>
         <div class="section-title">1. [데이터 추출] 핵심 수치 도출</div>
         <div class="section-content">
-            자, 데이터부터 깔고 시작하자. 현재 이 시장 씹어먹고 있는 핵심 숫자야.
+            현장 데이터 바로 까보자. 지금 이 시장은 <b>'{top_k[0] if top_k else '트렌드'}'</b>가 다 씹어먹고 있어.
             <table>
-                <tr><th>평균 조회수 (Traffic)</th><th>평균 Viral Point (Engagement)</th><th>핵심 DNA (Keywords)</th></tr>
+                <tr><th>평균 조회수</th><th>평균 Viral Point</th><th>주요 키워드</th></tr>
                 <tr><td>{int(avg_views):,}회</td><td>{int(avg_viral):,}점</td><td>{keyword_str}</td></tr>
             </table>
         </div>
-
-        <div class="section-title">2. [SWOT 분석] 현재 시장 판세</div>
+        <div class="section-title">2. [SWOT 분석] 전략적 판세</div>
         <div class="section-content">
-            <ul>
-                <li><b>Strength:</b> {int(avg_viral):,}점대의 높은 바이럴 지수로 알고리즘 점유율 최상단 확보.</li>
-                <li><b>Weakness:</b> 숏폼 포맷 특성상 3초 내에 시각적 훅(Hook) 없으면 유저들 바로 이탈함.</li>
-                <li><b>Opportunity:</b> '{top_k[0] if top_k else '트렌드'}' 소재는 현재 리믹스 및 챌린지 확산 가능성 매우 높음.</li>
-                <li><b>Threat:</b> 유사 포맷의 무분별한 복제로 인한 시청자 피로도 급증 주의.</li>
-            </ul>
+            • <b>Strength:</b> {int(avg_viral):,}점대의 높은 인게이지먼트로 알고리즘 점유율 최상단 확보.<br>
+            • <b>Weakness:</b> 경쟁 콘텐츠 과열로 3초 내 훅(Hook) 없으면 바로 이탈.<br>
+            • <b>Opportunity:</b> '{top_k[0]}' 소재 기반 챌린지 및 리믹스 확산 가능성 농후.<br>
+            • <b>Threat:</b> 유사 포맷 무한 복제로 인한 유저 피로도 상승 주의.
         </div>
-
-        <div class="section-title">3. [시청자 반응 예측] 그들은 왜 보는가?</div>
+        <div class="section-title">3. [시청자 반응 예측] 왜 보는 걸까?</div>
         <div class="section-content">
-            시청자들은 지금 <b>'{top_k[0] if top_k else '이 콘텐츠'}'</b>에 대해 "진짜 대박이다", "이거 나만 그래?" 같은 <b>강한 공감과 경탄</b> 위주로 반응하고 있어. 
-            특히 3초 후킹에 성공한 영상들이 Viral Point 상위권을 싹쓸이 중이야. 타겟 팬덤의 결집력이 이 트렌드를 유지시키는 핵심 동력임.
+            시청자들은 지금 <b>'{top_k[0]}'</b>에 대해 "진짜 소름 돋는다", "나만 알고 싶다" 같은 <b>강한 소속감과 경탄</b> 위주로 반응해. 
+            3초 후킹 성공 영상들이 상위권을 싹쓸이 중이고, 타겟 팬덤 결집력이 트렌드를 견인하는 핵심이야.
         </div>
-
         <div class="section-title">4. [실행 전략] 6하원칙 기획안</div>
         <div class="section-content">
-            말 길게 안 할게. 내일 당장 이거 찍어와.
-            <br>• <b>Who:</b> {region_name} 내 MZ/알파 세대 타겟
-            <br>• <b>When:</b> 주말 저녁 알고리즘 피크 타임 타겟 업로드
-            <br>• <b>Where:</b> 자극적인 자막과 함께 9:16 세로형 포맷 고수
-            <br>• <b>What:</b> '{top_k[0] if top_k else '핵심'}'와 관련된 시각적 반전 요소 배치
-            <br>• <b>How:</b> 도입 1초에 결론부터 박고 시작하는 '역순 스토리텔링' 기법 적용
-            <br>• <b>Why:</b> 현재 수집된 영상 중 Viral Point 1위가 이 방식을 써서 대박 났거든.
+            내일 당장 이거 찍어와.<br>
+            • <b>Who:</b> {region_name} MZ/알파 타겟 | • <b>When:</b> 주말 저녁 골든타임 업로드<br>
+            • <b>Where:</b> 자극적 자막 + 9:16 세로형 | • <b>What:</b> '{top_k[0]}' 관련 시각적 반전 요소<br>
+            • <b>How:</b> 도입 1초에 결론부터 박는 '역순 구성' | • <b>Why:</b> Viral Point 1위 콘텐츠의 성공 방정식
         </div>
-
-        <div class="expert-tip">💡 전문가의 한 줄 팁: "{top_k[0] if top_k else '키워드'}에 목숨 걸어. 제목 맨 앞에 안 박으면 클릭조차 안 일어난다!"</div>
+        <div class="expert-tip">💡 전문가 팁: "{top_k[0]} 키워드가 현재 깡패야. 제목 맨 앞에 안 박으면 노출도 안 된다!"</div>
     </div>
     """
-    return html
 
 def fetch_videos(topic_text, v_type, r_info, v_count):
     youtube = get_youtube_client()
@@ -176,8 +160,7 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
             if "quotaExceeded" in str(e): raise e
             break
 
-    v_ids = [i['id']['videoId'] if 'videoId' in item['id'] else i['id'] for i in collected if 'id' in i]
-    # search API와 videos API의 ID 구조가 다를 수 있어 재정의
+    # [수정] ID 추출 로직 오류(item -> i) 수정
     v_ids = []
     for i in collected:
         if 'id' in i:
@@ -249,9 +232,9 @@ if search_clicked or not topic:
             st.subheader(f"📝 {region_name} {video_type} 분석 결과")
             if not final_res: st.warning("데이터를 확보하지 못했습니다. 조건을 변경해 보세요.")
             else:
-                cols = st.columns(4)
+                grid = st.columns(4)
                 for idx, v in enumerate(final_res):
-                    with cols[idx % 4]:
+                    with grid[idx % 4]:
                         s_class = "status-hot" if v['tier'] == 1 else "status-steady"
                         st.markdown(f"""
                         <div class="video-card">
@@ -263,10 +246,8 @@ if search_clicked or not topic:
                         </div>
                         """, unsafe_allow_html=True)
                 st.markdown(report, unsafe_allow_html=True)
-                # [수정] SyntaxError 방지를 위한 코드 분리
-                c1, c2 = st.columns([3, 1])
-                with c2:
-                    show_ad("bottom")
+                c1, c2 = st.columns([3, 1]); 
+                with c2: show_ad("bottom")
         except Exception as e:
             if "quotaExceeded" in str(e):
                 if st.session_state.key_index < len(API_KEYS) - 1:
