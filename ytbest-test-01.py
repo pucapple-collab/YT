@@ -16,7 +16,7 @@ API_KEYS = [
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
-st.set_page_config(page_title="마케팅 트렌드 인사이트", layout="wide")
+st.set_page_config(page_title="글로벌 마케팅 정밀 분석", layout="wide")
 
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
@@ -26,21 +26,18 @@ st.markdown("""
 <style>
     .video-card { background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); min-height: 750px; display: flex; flex-direction: column; justify-content: space-between; }
     .thumb-link img { transition: transform 0.2s; border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
-    .thumb-link img:hover { transform: scale(1.02); }
     .v-title { font-size: 1rem; font-weight: 800; color: #111; line-height: 1.4; max-height: 2.8em; overflow: hidden; margin: 12px 0 8px 0; }
     .v-meta { font-size: 0.85rem; color: #555; margin-bottom: 10px; line-height: 1.6; border-bottom: 1px dashed #eee; padding-bottom: 10px; }
     .v-status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 10px; }
     .status-hot { background-color: #ffebee; color: #c62828; }
-    .status-steady { background-color: #e3f2fd; color: #1565c0; }
     .v-insight-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 0.85rem; border-left: 4px solid #1a73e8; margin-top: auto; }
-    .v-quote { font-style: italic; color: #666; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #eee; margin: 8px 0; font-size: 0.8rem; }
-    .report-container { background-color: #263238; color: #eceff1; padding: 30px; border-radius: 15px; margin-top: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .report-container { background-color: #263238; color: #eceff1; padding: 30px; border-radius: 15px; margin-top: 40px; }
     .report-highlight { color: #80cbc4; font-weight: bold; font-size: 1.1rem; margin-top: 20px; display: block; margin-bottom: 10px;}
     .stat-val { color: #1a73e8; font-weight: 800; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📡 실시간 유튜브 트렌드 & 정밀 마케팅 리포트")
+st.title("📡 실시간 유튜브 트렌드 & 초정밀 마케팅 분석")
 
 translator = Translator()
 
@@ -56,14 +53,32 @@ def parse_duration(duration):
     if seconds: total += int(seconds.group(1))
     return total
 
-def is_non_us_focused(title, channel):
-    """미국 타겟 시 인도/동남아 중심 콘텐츠 여부 판별"""
-    keywords = [
-        'india', 'hindi', 'bollywood', 't-series', 'zeemusic', 'telugu', 'tamil', 
-        'thai', 'vietnam', 'philippines', 'indonesia', 'malay', 'v-pop', 't-pop'
+def is_strictly_non_us(title, channel):
+    """
+    유니코드 문자열 분석 및 블랙리스트를 통한 초정밀 비북미권 필터링
+    """
+    # 1. 특수 문자 기반 필터 (힌두어, 태국어, 아랍어 등 유니코드 범위)
+    scripts = [
+        re.compile(r'[\u0900-\u097F]+'), # Devanagari (인도)
+        re.compile(r'[\u0E00-\u0E7F]+'), # Thai (태국)
+        re.compile(r'[\u0600-\u06FF]+'), # Arabic (중동)
+        re.compile(r'[\u0B80-\u0BFF]+'), # Tamil (인도 남부)
     ]
-    combined = (title + " " + channel).lower()
-    return any(k in combined for k in keywords)
+    
+    combined = title + " " + channel
+    if any(s.search(combined) for s in scripts):
+        return True
+
+    # 2. 확장 블랙리스트 키워드 (인도/동남아 대형 미디어)
+    blacklist = [
+        'india', 'hindi', 'bollywood', 't-series', 'zeemusic', 'telugu', 'tamil', 'punjabi',
+        'set india', 'sony pal', 'colors tv', 'sab tv', 'star plus', 'voot', 'dangal',
+        'thai', 'vietnam', 'philippines', 'indonesia', 'malay', 'v-pop', 't-pop', 'gmmgrammy',
+        'gma network', 'abs-cbn', 'workpoint', 'bhakti', 'bhojpuri'
+    ]
+    
+    combined_lower = combined.lower()
+    return any(k in combined_lower for k in blacklist)
 
 def analyze_viral_trigger(youtube, video_id, title, region_code):
     try:
@@ -81,13 +96,12 @@ def analyze_viral_trigger(youtube, video_id, title, region_code):
         valid_quotes = [c for c in target_comments if len(c) > 10 and len(c) < 100]
         best_quote = valid_quotes[0] if valid_quotes else target_comments[0][:60]
         
-        if any(w in full_text for w in ['노래', '음색', 'dance', 'song', 'mv', 'music', '직캠']): trigger = "🎤 퍼포먼스/뮤직"
-        elif any(w in full_text for w in ['ㅋㅋㅋㅋ', 'lol', 'funny', '웃겨']): trigger = "😂 엔터테인먼트"
-        elif any(w in full_text for w in ['강의', '꿀팁', '방법', 'how to']): trigger = "💡 정보성/유틸리티"
-        elif any(w in full_text for w in ['논란', '충격', 'news']): trigger = "🔥 이슈/노이즈"
+        if any(w in full_text for w in ['ㅋㅋㅋㅋ', 'lol', 'funny', '웃겨']): trigger = "😂 엔터테인먼트"
+        elif any(w in full_text for w in ['노래', '음색', 'dance', 'music', 'mv']): trigger = "🎤 퍼포먼스/뮤직"
+        elif any(w in full_text for w in ['꿀팁', 'how to', '강의', 'review']): trigger = "💡 정보성/유틸리티"
         else: trigger = "🥰 감성/공감"
         
-        insight = "시청자의 즉각적인 반응을 이끌어내는 요소가 강력함."
+        insight = "타겟 국가 시청자들의 실시간 반응이 매우 능동적임."
         return trigger, insight, best_quote.replace('"', '').strip()
     except Exception as e:
         if "quotaExceeded" in str(e): raise e
@@ -97,10 +111,9 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     youtube = get_youtube_client()
     is_shorts = "Shorts" in v_type
     is_popular_mode = not topic_text.strip()
-    published_after = (datetime.utcnow() - timedelta(days=30)).isoformat() + "Z" if is_popular_mode and is_shorts else None
-
-    # 1. 데이터 호출 (미국 타겟 시 필터링을 위해 넉넉히 가져옴)
-    max_raw = 50 if r_info['code'] == 'US' else v_count + 10
+    
+    # 미국 타겟 시 더 넓은 범위에서 필터링하기 위해 maxResults를 100으로 상향
+    max_raw = 100 if r_info['code'] == 'US' else 50
     
     if not is_popular_mode:
         try: translated_q = translator.translate(topic_text, dest=r_info['lang']).text
@@ -108,8 +121,7 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
         request = youtube.search().list(part="snippet", q=f"{translated_q} {'#shorts' if is_shorts else ''}", type="video", videoDuration="short" if is_shorts else "any", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=max_raw)
     else:
         if is_shorts:
-            country_kw = {"KR": "쇼츠", "US": "Shorts", "JP": "ショート"}
-            request = youtube.search().list(part="snippet", q=f"#shorts {country_kw.get(r_info['code'], '')}", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", publishedAfter=published_after, maxResults=max_raw)
+            request = youtube.search().list(part="snippet", q="#shorts", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=max_raw)
         else:
             request = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=r_info['code'], maxResults=max_raw)
     
@@ -122,46 +134,49 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     results, titles_list, trend_keywords = [], [], []
     today = datetime.now()
     
-    # [핵심] 비북미권 영상 개수 관리
-    non_target_count = 0
-    max_non_target = int(v_count * 0.2) # 요청 개수의 20%로 제한
+    # 비북미권 개수 관리 (20% 제한)
+    non_us_count = 0
+    max_non_us = int(v_count * 0.2)
 
     for item in stats_response.get('items', []):
+        title = item['snippet']['title']
+        channel = item['snippet']['channelTitle']
         duration_sec = parse_duration(item['contentDetails']['duration'])
+        
         if not is_shorts and duration_sec < 120: continue 
         if is_shorts and duration_sec > 120: continue
         
-        # [핵심] 미국 타겟 시 인도/동남아 필터링 (20% 제한)
+        # [초정밀 필터링 적용]
         if r_info['code'] == 'US':
-            if is_non_us_focused(item['snippet']['title'], item['snippet']['channelTitle']):
-                if non_target_count >= max_non_target:
-                    continue # 20% 넘으면 스킵
-                non_target_count += 1
+            if is_strictly_non_us(title, channel):
+                if non_us_count >= max_non_us: continue
+                non_us_count += 1
 
         pub_date = datetime.strptime(item['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%SZ")
         days_diff = (today - pub_date).days
         views = int(item['statistics'].get('viewCount', 0))
-        comments_count = int(item['statistics'].get('commentCount', 0)) if 'commentCount' in item['statistics'] else 0
-        if days_diff > 10 and (comments_count == 0 or (views / (days_diff+1) < 100)): continue
+        comments = int(item['statistics'].get('commentCount', 0)) if 'commentCount' in item['statistics'] else 0
+        if days_diff > 10 and (comments == 0 or (views / (days_diff+1) < 100)): continue
 
-        trigger_type, expert_insight, user_quote = analyze_viral_trigger(youtube, item['id'], item['snippet']['title'], r_info['code'])
-        trend_keywords.append(trigger_type)
-        titles_list.append(item['snippet']['title'])
-        engagement_rate = (comments_count / views) * 100 if views > 0 else 0
-        viral_score = int(views * (0.001 + (engagement_rate * 0.01))) 
-
+        trigger, insight, quote = analyze_viral_trigger(youtube, item['id'], title, r_info['code'])
+        trend_keywords.append(trigger)
+        titles_list.append(title)
+        
         results.append({
-            'title': item['snippet']['title'], 'thumbnail': item['snippet']['thumbnails']['high']['url'],
+            'title': title, 'thumbnail': item['snippet']['thumbnails']['high']['url'],
             'url': f"https://www.youtube.com/shorts/{item['id']}" if is_shorts else f"https://www.youtube.com/watch?v={item['id']}",
-            'channel': item['snippet']['channelTitle'], 'view_count': views, 'date': pub_date.strftime("%Y-%m-%d"),
-            'trigger': trigger_type, 'insight': expert_insight, 'quote': user_quote, 'viral_score': viral_score,
+            'channel': channel, 'view_count': views, 'date': pub_date.strftime("%Y-%m-%d"),
+            'trigger': trigger, 'insight': insight, 'quote': quote, 
+            'viral_score': int(views * (0.001 + (comments / views * 0.01))) if views > 0 else 0,
             'status': "🔥 급상승" if days_diff < 7 else "🔄 스테디"
         })
         if len(results) >= v_count: break
-    return results, (len(results)/v_count)*100 if v_count > 0 else 0, trend_keywords, titles_list
+
+    accuracy = (len(results) / v_count) * 100 if v_count > 0 else 0
+    return results, min(accuracy, 100.0), trend_keywords, titles_list
 
 # --- 사이드바 ---
-st.sidebar.header("📊 마케팅 분석 설정")
+st.sidebar.header("📊 분석 파라미터")
 region_map = {"한국 🇰🇷": {"code": "KR", "lang": "ko"}, "미국 🇺🇸": {"code": "US", "lang": "en"}, "일본 🇯🇵": {"code": "JP", "lang": "ja"} }
 region_name = st.sidebar.selectbox("📍 타겟 시장", list(region_map.keys()))
 sel_region = region_map[region_name]
@@ -172,7 +187,7 @@ search_clicked = st.sidebar.button("🚀 인사이트 도출 시작", use_contai
 
 # --- 결과 출력 ---
 if search_clicked or not topic:
-    with st.spinner('트렌드 분석 및 타겟 필터링 중...'):
+    with st.spinner('초정밀 필터링 및 리포트 작성 중...'):
         try:
             final_results, accuracy, keywords_list, titles = fetch_videos(topic, video_type, sel_region, count)
             st.subheader(f"📝 {region_name} {video_type} 심층 분석 결과")
@@ -181,17 +196,16 @@ if search_clicked or not topic:
                 cols = st.columns(4)
                 for idx, video in enumerate(final_results):
                     with cols[idx % 4]:
-                        s_color = "status-hot" if "급상승" in video['status'] else "status-steady"
                         st.markdown(f"""
                         <div class="video-card">
                             <a href="{video['url']}" target="_blank" class="thumb-link"><img src="{video['thumbnail']}"></a>
-                            <div style="margin-top:10px;"><span class="v-status {s_color}">{video['status']}</span></div>
+                            <div style="margin-top:10px;"><span class="v-status status-hot">{video['status']}</span></div>
                             <div class="v-title">{video['title']}</div>
                             <div class="v-meta"><b>{video['channel']}</b><br>조회수: {video['view_count']:,}회<br>공개일: {video['date']}</div>
                             <div class="v-insight-box"><b>🎯 트렌드 요인:</b><br>{video['trigger']}<br><br>
                             <div style="font-size:0.8rem; line-height:1.5; color:#444;">{video['insight']}</div>
                             <div class="v-quote">" {video['quote']} "</div>
-                            <div style="margin-top:10px; font-size:0.8rem;">🌐 <b>바이럴 지수:</b> <span class="stat-val">{video['viral_score']}</span></div></div>
+                            <div style="margin-top:10px; font-size:0.8rem;">🌐 <b>바이럴 지수:</b> <span class="stat-val">{video['viral_score']:,}</span></div></div>
                         </div>
                         """, unsafe_allow_html=True)
                 
@@ -207,11 +221,11 @@ if search_clicked or not topic:
     <span class="report-highlight">📍 현황 진단:</span>
     <p style="line-height: 1.8; color: #eceff1;">
         현재 <b>{region_name}</b> 시장의 {video_type} 트렌드는 <b>'{most_common_trigger}'</b> 요소가 핵심 드라이버입니다. 
-        특히 미국 타겟 데이터의 경우, 비북미권(인도/동남아) 콘텐츠 비중을 20% 이하로 엄격히 제한하여 현지 순수 트렌드 정합성을 높였습니다. 
-        분석 결과 <b>{title_str}</b> 등의 콘텐츠가 인게이지먼트를 주도하며 높은 바이럴 지수를 기록 중입니다.
+        데이터 분석 결과 <b>{title_str}</b> 등의 콘텐츠가 상위권에 랭크되었습니다.
+        특히 미국 시장 분석의 경우, 유니코드 스크립트 감지 및 확장 블랙리스트를 통해 비북미권 콘텐츠를 20% 이하로 제어하여 현지 정합성을 극대화했습니다.
     </p>
     <hr style="border: 0.5px solid #546e7a;">
-    <p style="font-size: 0.8rem; color: #b0bec5;">[검증 완료] 타겟 지역 정합성 필터링 및 2분 이상 길이 제한 로직이 적용된 결과입니다.</p>
+    <p style="font-size: 0.8rem; color: #b0bec5;">[초정밀 검증] 유니코드 기반 지역 필터링 및 인게이지먼트 정합성 로직이 적용된 보고서입니다.</p>
 </div>"""
                 st.markdown(report_html, unsafe_allow_html=True)
 
@@ -219,8 +233,8 @@ if search_clicked or not topic:
             if "quotaExceeded" in str(e):
                 if st.session_state.key_index < len(API_KEYS) - 1:
                     st.session_state.key_index += 1
-                    st.toast("🔄 1번 키 소진! 2번 키로 자동 전환합니다...")
+                    st.toast("🔄 1번 키 소진! 2번 키 전환 중...")
                     time.sleep(1)
                     st.rerun()
-                else: st.error("🚨 모든 API 할당량 소진.")
+                else: st.error("🚨 모든 할당량 소진.")
             else: st.error(f"오류 발생: {e}")
