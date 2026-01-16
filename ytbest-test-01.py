@@ -5,6 +5,7 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta
 import statistics
+import random
 
 # --- [설정] API 키 관리 ---
 API_KEYS = ["AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"]
@@ -16,10 +17,9 @@ st.set_page_config(page_title="Global Trend Intelligence", layout="wide")
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
-# CSS 디자인 (공백 제거 및 리포트 고도화)
+# CSS 디자인
 st.markdown("""
 <style>
-    /* 카드 디자인 최적화: 높이 자동 조절 */
     .video-card { 
         background-color: #ffffff; 
         padding: 15px; 
@@ -27,7 +27,7 @@ st.markdown("""
         border: 1px solid #e0e0e0; 
         margin-bottom: 20px; 
         box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
-        height: 100%; /* 부모 높이에 맞춤 */
+        height: 100%;
     }
     .thumb-link img { transition: transform 0.2s; border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
     .thumb-link img:hover { transform: scale(1.02); }
@@ -42,12 +42,33 @@ st.markdown("""
     
     .v-insight-box { background-color: #f8f9fa; padding: 10px; border-radius: 8px; font-size: 0.8rem; border-left: 3px solid #1a73e8; }
     
-    /* 시니어 리포트 스타일 */
-    .report-container { background-color: #1e293b; color: #f1f5f9; padding: 30px; border-radius: 15px; margin-top: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .report-title { color: #38bdf8; font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; border-bottom: 1px solid #475569; padding-bottom: 10px; }
-    .report-section { margin-bottom: 15px; }
-    .report-label { color: #94a3b8; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-    .report-content { font-size: 1rem; line-height: 1.7; margin-top: 5px; }
+    /* 리포트 스타일 */
+    .report-container { 
+        background-color: #1e293b; 
+        color: #f1f5f9; 
+        padding: 30px; 
+        border-radius: 15px; 
+        margin-top: 40px; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+    }
+    .report-title { 
+        color: #38bdf8; 
+        font-size: 1.5rem; 
+        font-weight: bold; 
+        margin-bottom: 20px; 
+        border-bottom: 1px solid #475569; 
+        padding-bottom: 10px; 
+    }
+    .report-section { margin-bottom: 20px; }
+    .report-label { 
+        color: #94a3b8; 
+        font-size: 0.85rem; 
+        font-weight: bold; 
+        text-transform: uppercase; 
+        letter-spacing: 1px; 
+        margin-bottom: 5px;
+    }
+    .report-content { font-size: 1rem; line-height: 1.7; }
     .highlight { color: #facc15; font-weight: bold; }
     .stat-val { color: #1a73e8; font-weight: 800; }
 </style>
@@ -76,69 +97,66 @@ def calculate_viral_point(views, likes, comments):
 def is_japanese(text):
     return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', text))
 
-def generate_expert_report(region_name, video_type, results, keywords):
+def generate_expert_report(region_display_name, video_type, results, keywords):
     """
-    수집된 데이터를 기반으로 시니어급 마케팅 리포트 자동 생성
+    시니어급 마케팅 리포트 생성 (HTML 태그 오류 수정됨)
     """
     if not results: return "데이터 부족으로 리포트를 생성할 수 없습니다."
     
-    # 데이터 통계 산출
     avg_views = statistics.mean([v['view_raw'] for v in results])
     avg_viral = statistics.mean([v['v_point'] for v in results])
     top_keywords = [k for k, c in Counter(keywords).most_common(3)]
+    keyword_str = ", ".join(top_keywords)
     
-    # 국가별/형태별 문맥 설정
     context = ""
-    if region_name == "일본 🇯🇵" and "Shorts" in video_type:
+    if "일본" in region_display_name and "Shorts" in video_type:
         context = "일본 숏폼 시장은 '버츄얼 유튜버', '애니메이션 2차 창작', '생활 밀착형 꿀팁'이 강세이며, 언어적 유희가 포함된 밈(Meme)의 확산 속도가 빠릅니다."
-    elif region_name == "미국 🇺🇸":
+    elif "미국" in region_display_name:
         context = "미국 시장은 '강력한 시각적 후킹'과 '챌린지 참여'가 핵심이며, 글로벌 트렌드의 발신지 역할을 수행합니다."
-    elif region_name == "한국 🇰🇷":
+    elif "한국" in region_display_name:
         context = "한국 시장은 '공감대 형성'과 '빠른 정보 전달'이 핵심이며, 댓글을 통한 커뮤니티 형성이 트렌드 지속성을 결정합니다."
 
-    return f"""
-    <div class="report-container">
-        <div class="report-title">📊 2026 {region_name} 마케팅 트렌드 인사이트 보고서</div>
-        
-        <div class="report-section">
-            <div class="report-label">Target Market Analysis</div>
-            <div class="report-content">
-                현재 <b>{region_name}</b>의 {video_type} 시장은 평균 조회수 <span class="highlight">{int(avg_views):,}회</span>, 평균 Viral Point <span class="highlight">{int(avg_viral):,}점</span>을 기록하며 고관여 트렌드를 형성하고 있습니다. 
-                {context}
-            </div>
-        </div>
-
-        <div class="report-section">
-            <div class="report-label">Content DNA & UGC Pattern</div>
-            <div class="report-content">
-                상위 랭크된 콘텐츠들의 공통된 DNA는 <b>'{", ".join(top_keywords)}'</b>입니다. 
-                단순 시청에서 끝나는 것이 아니라, 시청자가 댓글로 본인의 경험을 공유하거나 타인을 태그하는 <b>'참여형 소비'</b> 패턴이 뚜렷합니다. 
-                특히 10일 이내 업로드된 신규 콘텐츠들이 <b>'재가공(Remix)'</b> 및 <b>'스크랩(저장)'</b> 유도를 통해 알고리즘 노출 빈도를 높이고 있습니다.
-            </div>
-        </div>
-
-        <div class="report-section">
-            <div class="report-label">Strategic Recommendation</div>
-            <div class="report-content">
-                1. <b>포맷 최적화:</b> {video_type}의 특성을 고려하여 초반 3초 내에 '{top_keywords[0]}' 요소를 시각적으로 배치하십시오.<br>
-                2. <b>인게이지먼트 유도:</b> 단순 질문보다는 논쟁이나 공감을 유발하는 '고정 댓글' 전략을 통해 Viral Point를 확보해야 합니다.<br>
-                3. <b>타겟팅:</b> 현재 트렌드는 광범위한 대중보다는 특정 취향(Niche)을 가진 <b>'코어 팬덤'</b>의 결집력이 전체 트렌드를 견인하고 있으므로, 타겟 페르소나를 좁게 설정하는 것이 유리합니다.
-            </div>
-        </div>
-        
-        <hr style="border-color: #475569;">
-        <div style="font-size: 0.8rem; color: #94a3b8;">
-            * 본 리포트는 실시간 수집된 {len(results)}건의 데이터(조회수, 게시일, 반응도)를 정량 분석하여 도출되었습니다.
+    # [수정] 들여쓰기 문제 해결을 위해 f-string을 한 줄로 연결하거나 textwrap 사용
+    # 여기서는 가독성을 위해 명확한 HTML 구조로 반환
+    html_content = f"""
+<div class="report-container">
+    <div class="report-title">📊 2026 {region_display_name} 마케팅 트렌드 인사이트 보고서</div>
+    <div class="report-section">
+        <div class="report-label">Target Market Analysis</div>
+        <div class="report-content">
+            현재 <b>{region_display_name}</b>의 {video_type} 시장은 평균 조회수 <span class="highlight">{int(avg_views):,}회</span>, 평균 Viral Point <span class="highlight">{int(avg_viral):,}점</span>을 기록하며 고관여 트렌드를 형성하고 있습니다. 
+            {context}
         </div>
     </div>
-    """
+    <div class="report-section">
+        <div class="report-label">Content DNA & UGC Pattern</div>
+        <div class="report-content">
+            상위 랭크된 콘텐츠들의 공통된 DNA는 <b>'{keyword_str}'</b>입니다. 
+            단순 시청에서 끝나는 것이 아니라, 시청자가 댓글로 본인의 경험을 공유하거나 타인을 태그하는 <b>'참여형 소비'</b> 패턴이 뚜렷합니다. 
+            특히 10일 이내 업로드된 신규 콘텐츠들이 <b>'재가공(Remix)'</b> 및 <b>'스크랩(저장)'</b> 유도를 통해 알고리즘 노출 빈도를 높이고 있습니다.
+        </div>
+    </div>
+    <div class="report-section">
+        <div class="report-label">Strategic Recommendation</div>
+        <div class="report-content">
+            1. <b>포맷 최적화:</b> {video_type}의 특성을 고려하여 초반 3초 내에 '{top_keywords[0] if top_keywords else '핵심'}' 요소를 시각적으로 배치하십시오.<br>
+            2. <b>인게이지먼트 유도:</b> 단순 질문보다는 논쟁이나 공감을 유발하는 '고정 댓글' 전략을 통해 Viral Point를 확보해야 합니다.<br>
+            3. <b>타겟팅:</b> 현재 트렌드는 광범위한 대중보다는 특정 취향(Niche)을 가진 <b>'코어 팬덤'</b>의 결집력이 전체 트렌드를 견인하고 있습니다.
+        </div>
+    </div>
+    <hr style="border-color: #475569;">
+    <div style="font-size: 0.8rem; color: #94a3b8;">
+        * 본 리포트는 실시간 수집된 {len(results)}건의 데이터(조회수, 게시일, 반응도)를 정량 분석하여 도출되었습니다.
+    </div>
+</div>
+"""
+    return html_content
 
 def fetch_videos(topic_text, v_type, r_info, v_count):
     youtube = get_youtube_client()
     is_shorts = "Shorts" in v_type
     is_popular_mode = not topic_text.strip()
     
-    # [해결] 데이터 부족 해결을 위해 페이지네이션 적용 (최대 4페이지/200개 스캔)
     collected_items = []
     next_page_token = None
     max_scan_pages = 4 
@@ -173,18 +191,16 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
             collected_items.extend(response.get('items', []))
             next_page_token = response.get('nextPageToken')
             
-            if not next_page_token: break # 더 이상 데이터 없으면 중단
-            if len(collected_items) >= 200: break # 충분히 모았으면 중단
+            if not next_page_token: break
+            if len(collected_items) >= 200: break
             
         except Exception as e:
             if "quotaExceeded" in str(e): raise e
             break
 
-    # ID 추출 및 상세 조회
     video_ids = [item['id']['videoId'] if 'videoId' in item['id'] else item['id'] for item in collected_items]
     if not video_ids: return [], 0, [], ""
 
-    # 상세 데이터는 50개씩 끊어서 조회 (URL 길이 제한 방지)
     all_stats_items = []
     for i in range(0, len(video_ids), 50):
         chunk = video_ids[i:i+50]
@@ -202,21 +218,18 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
         channel = item['snippet']['channelTitle']
         duration_sec = parse_duration(item['contentDetails']['duration'])
         
-        # 필터링 로직
         days_diff = (now - datetime.strptime(item['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%SZ")).days
-        if days_diff > 365: continue # 1년 이상 제외
+        if days_diff > 365: continue 
         
         if not is_shorts and duration_sec < 120: continue 
         if is_shorts and duration_sec > 120: continue
         
-        # [핵심] 일본어 필터: 일본 지역 설정 시 일본어가 없으면 과감히 제외
         if r_info['code'] == 'JP' and not is_japanese(title + channel): continue
 
         views = int(item['statistics'].get('viewCount', 0))
         likes = int(item['statistics'].get('likeCount', 0)) if 'likeCount' in item['statistics'] else 0
         comments = int(item['statistics'].get('commentCount', 0)) if 'commentCount' in item['statistics'] else 0
         
-        # 스테디셀러 검증
         if days_diff > 30 and (views < 500000 or (likes+comments)/views < 0.02): continue
 
         v_point = calculate_viral_point(views, likes, comments)
@@ -225,7 +238,6 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
         elif days_diff <= 30: tier, status = 2, "📅 월간 트렌드"
         else: tier, status = 3, "🔄 스테디셀러"
 
-        # 키워드 수집 (리포트용)
         words = re.sub(r'[^\w\s]', '', title).split()
         trend_keywords.extend([w for w in words if len(w) > 1])
 
@@ -236,12 +248,21 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
             'v_point': v_point, 'status': status, 'tier': tier, 'view_raw': views
         })
 
-    # 정렬 및 개수 제한
     results.sort(key=lambda x: (x['tier'], -x['v_point']))
     final_list = results[:v_count]
     
-    # 리포트 생성
-    report_html = generate_expert_report(f"{r_info['code']} ({r_info['lang']})", "Shorts" if is_shorts else "Long-form", final_list, trend_keywords)
+    # [수정] 보고서 생성 시 지역명(Region Name) 전달
+    # region_name 변수는 사이드바에서 선택된 값 (예: "한국 🇰🇷")
+    # 하지만 여기 함수 인자에는 없으므로 fetch_videos 호출 시 사용된 region_map 키를 찾아야 함
+    # 편의상 fetch_videos 호출 후 리턴값에서 해결하거나, 여기서 해결.
+    # 여기서는 간단히 r_info['code']를 기반으로 역추적하거나 외부에서 전달받는 게 좋음.
+    # 함수 구조상 내부에서 처리:
+    display_name = f"{r_info['code']} 시장"
+    if r_info['code'] == 'KR': display_name = "한국 🇰🇷"
+    elif r_info['code'] == 'US': display_name = "미국 🇺🇸"
+    elif r_info['code'] == 'JP': display_name = "일본 🇯🇵"
+
+    report_html = generate_expert_report(display_name, "Shorts" if is_shorts else "Long-form", final_list, trend_keywords)
     
     accuracy = (len(final_list)/v_count)*100 if v_count > 0 else 0
     return final_list, min(accuracy, 100.0), report_html
@@ -285,6 +306,7 @@ if search_clicked or not topic:
                         </div>
                         """, unsafe_allow_html=True)
                 
+                # [수정] 리포트 HTML 출력 시 unsafe_allow_html=True 필수
                 st.markdown(report_html, unsafe_allow_html=True)
 
         except Exception as e:
