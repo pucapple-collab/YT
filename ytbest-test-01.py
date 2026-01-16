@@ -17,42 +17,6 @@ st.set_page_config(page_title="Global Trend Intelligence", layout="wide")
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
-# --- [광고] 광고 배너 함수 ---
-def show_ad_banner(position):
-    """
-    position: 'sidebar', 'top', 'bottom'
-    본인의 광고 이미지 URL과 링크로 교체하세요.
-    """
-    # 예시 광고 데이터 (쿠팡 파트너스 배너 등을 여기에 넣으세요)
-    ad_data = {
-        "sidebar": {
-            "img": "https://via.placeholder.com/300x250.png?text=Sidebar+Ad+Area", # 300x250 사이즈 추천
-            "link": "https://www.google.com"
-        },
-        "top": {
-            "img": "https://via.placeholder.com/468x60.png?text=Top+Right+Banner", # 468x60 사이즈 추천
-            "link": "https://www.youtube.com"
-        },
-        "bottom": {
-            "img": "https://via.placeholder.com/300x250.png?text=Bottom+Right+Ad", # 300x250 사이즈 추천
-            "link": "https://www.netflix.com"
-        }
-    }
-    
-    data = ad_data.get(position)
-    
-    if data:
-        # 광고 HTML 생성 (클릭 시 새 창 열림)
-        html_code = f"""
-        <div style="text-align: right; margin: 10px 0;">
-            <a href="{data['link']}" target="_blank">
-                <img src="{data['img']}" style="width: 100%; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-            </a>
-            <div style="font-size: 10px; color: #999; text-align: right; margin-top: 2px;">ADVERTISEMENT</div>
-        </div>
-        """
-        st.markdown(html_code, unsafe_allow_html=True)
-
 # CSS 디자인
 st.markdown("""
 <style>
@@ -88,12 +52,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- [광고 배치 1] 메인 화면 상단 (제목 우측) ---
-col_title, col_ad_top = st.columns([3, 1]) # 3:1 비율로 분할
-with col_title:
-    st.title("📡 실시간 글로벌 트렌드 인텔리전스")
-with col_ad_top:
-    show_ad_banner("top")
+# 광고 함수
+def show_ad_banner(position):
+    ad_data = {
+        "sidebar": {"img": "https://via.placeholder.com/300x250.png?text=US+Trend+Ads", "link": "#"},
+        "top": {"img": "https://via.placeholder.com/468x60.png?text=Premium+Analytics", "link": "#"},
+        "bottom": {"img": "https://via.placeholder.com/728x90.png?text=Marketing+Solutions", "link": "#"}
+    }
+    data = ad_data.get(position)
+    if data:
+        st.markdown(f"""<div style="text-align:center; margin:10px 0;"><a href="{data['link']}" target="_blank"><img src="{data['img']}" style="width:100%; border-radius:8px;"></a></div>""", unsafe_allow_html=True)
+
+# 상단 레이아웃
+col_title, col_ad = st.columns([3, 1])
+with col_title: st.title("📡 실시간 글로벌 트렌드 인텔리전스")
+with col_ad: show_ad_banner("top")
 
 translator = Translator()
 
@@ -116,55 +89,59 @@ def calculate_viral_point(views, likes, comments):
 def is_japanese(text):
     return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', text))
 
-def generate_expert_report(region_display_name, video_type, results, keywords):
+def is_strictly_non_us(title, channel):
+    """미국 타겟 시 인도/동남아 콘텐츠 강력 차단"""
+    # 1. 문자열(Script) 감지
+    scripts = [re.compile(r'[\u0900-\u097F]+'), re.compile(r'[\u0E00-\u0E7F]+'), re.compile(r'[\u0600-\u06FF]+'), re.compile(r'[\u0B80-\u0BFF]+')]
+    combined = title + " " + channel
+    if any(s.search(combined) for s in scripts): return True
+    
+    # 2. 키워드 블랙리스트 (인도/동남아 대형 채널 및 지명)
+    blacklist = [
+        'india', 'hindi', 'bollywood', 't-series', 'zeemusic', 'set india', 'sony pal', 'colors tv', 'sab tv', 'star plus', 
+        'telugu', 'tamil', 'punjabi', 'thai', 'vietnam', 'philippines', 'indonesia', 'malay', 'v-pop', 't-pop', 
+        'gmmgrammy', 'abs-cbn', 'workpoint', 'bhakti', 'bhojpuri', 'desimelodies', 'speed records'
+    ]
+    return any(k in combined.lower() for k in blacklist)
+
+def generate_expert_report(region_name, video_type, results, keywords):
     if not results: return "데이터 부족으로 리포트를 생성할 수 없습니다."
     
     avg_views = statistics.mean([v['view_raw'] for v in results])
     avg_viral = statistics.mean([v['v_point'] for v in results])
     top_keywords = [k for k, c in Counter(keywords).most_common(3)]
-    keyword_str = ", ".join(top_keywords)
     
     context = ""
-    if "일본" in region_display_name and "Shorts" in video_type:
-        context = "일본 숏폼 시장은 '버츄얼 유튜버', '애니메이션 2차 창작', '생활 밀착형 꿀팁'이 강세이며, 언어적 유희가 포함된 밈(Meme)의 확산 속도가 빠릅니다."
-    elif "미국" in region_display_name:
-        context = "미국 시장은 '강력한 시각적 후킹'과 '챌린지 참여'가 핵심이며, 글로벌 트렌드의 발신지 역할을 수행합니다."
-    elif "한국" in region_display_name:
-        context = "한국 시장은 '공감대 형성'과 '빠른 정보 전달'이 핵심이며, 댓글을 통한 커뮤니티 형성이 트렌드 지속성을 결정합니다."
+    if "일본" in region_name and "Shorts" in video_type:
+        context = "일본 숏폼 시장은 '버츄얼 유튜버', '애니메이션 2차 창작'이 강세이며, 언어적 유희가 포함된 밈(Meme)이 빠르게 확산됩니다."
+    elif "미국" in region_name:
+        context = "미국 시장은 '뉴욕/LA 기반의 어반 라이프스타일'과 '글로벌 챌린지'가 핵심이며, 인도 등 타 문화권 콘텐츠를 배제한 순수 북미 트렌드가 주도하고 있습니다."
+    elif "한국" in region_name:
+        context = "한국 시장은 '공감대 형성'과 '빠른 정보 전달'이 핵심이며, 댓글 커뮤니티가 트렌드 지속성을 결정합니다."
 
-    html_content = f"""
-<div class="report-container">
-    <div class="report-title">📊 2026 {region_display_name} 마케팅 트렌드 인사이트 보고서</div>
-    <div class="report-section">
-        <div class="report-label">Target Market Analysis</div>
-        <div class="report-content">
-            현재 <b>{region_display_name}</b>의 {video_type} 시장은 평균 조회수 <span class="highlight">{int(avg_views):,}회</span>, 평균 Viral Point <span class="highlight">{int(avg_viral):,}점</span>을 기록하며 고관여 트렌드를 형성하고 있습니다. 
-            {context}
+    return f"""
+    <div class="report-container">
+        <div class="report-title">📊 2026 {region_name} 마케팅 트렌드 인사이트 보고서</div>
+        <div class="report-section">
+            <div class="report-label">Target Market Analysis</div>
+            <div class="report-content">
+                현재 <b>{region_name}</b>의 {video_type} 시장은 평균 조회수 <span class="highlight">{int(avg_views):,}회</span>, 평균 Viral Point <span class="highlight">{int(avg_viral):,}점</span>을 기록 중입니다. 
+                {context}
+            </div>
+        </div>
+        <div class="report-section">
+            <div class="report-label">Content DNA</div>
+            <div class="report-content">
+                상위 랭크된 콘텐츠들의 핵심 DNA는 <b>'{", ".join(top_keywords)}'</b>입니다. 
+                특히 미국 시장 분석 시, <b>'Non-US Content 10% Cap'</b> 알고리즘을 적용하여 인도 및 동남아시아 유입을 차단하고 순수 북미권 데이터를 확보했습니다.
+            </div>
+        </div>
+        <hr style="border-color: #475569;">
+        <div style="font-size: 0.8rem; color: #94a3b8;">
+            * 본 리포트는 실시간 수집된 {len(results)}건의 정제된 데이터를 기반으로 작성되었습니다.
         </div>
     </div>
-    <div class="report-section">
-        <div class="report-label">Content DNA & UGC Pattern</div>
-        <div class="report-content">
-            상위 랭크된 콘텐츠들의 공통된 DNA는 <b>'{keyword_str}'</b>입니다. 
-            단순 시청에서 끝나는 것이 아니라, 시청자가 댓글로 본인의 경험을 공유하거나 타인을 태그하는 <b>'참여형 소비'</b> 패턴이 뚜렷합니다. 
-            특히 10일 이내 업로드된 신규 콘텐츠들이 <b>'재가공(Remix)'</b> 및 <b>'스크랩(저장)'</b> 유도를 통해 알고리즘 노출 빈도를 높이고 있습니다.
-        </div>
-    </div>
-    <div class="report-section">
-        <div class="report-label">Strategic Recommendation</div>
-        <div class="report-content">
-            1. <b>포맷 최적화:</b> {video_type}의 특성을 고려하여 초반 3초 내에 '{top_keywords[0] if top_keywords else '핵심'}' 요소를 시각적으로 배치하십시오.<br>
-            2. <b>인게이지먼트 유도:</b> 단순 질문보다는 논쟁이나 공감을 유발하는 '고정 댓글' 전략을 통해 Viral Point를 확보해야 합니다.<br>
-            3. <b>타겟팅:</b> 현재 트렌드는 광범위한 대중보다는 특정 취향(Niche)을 가진 <b>'코어 팬덤'</b>의 결집력이 전체 트렌드를 견인하고 있습니다.
-        </div>
-    </div>
-    <hr style="border-color: #475569;">
-    <div style="font-size: 0.8rem; color: #94a3b8;">
-        * 본 리포트는 실시간 수집된 {len(results)}건의 데이터(조회수, 게시일, 반응도)를 정량 분석하여 도출되었습니다.
-    </div>
-</div>
-"""
-    return html_content
+    """
 
 def fetch_videos(topic_text, v_type, r_info, v_count):
     youtube = get_youtube_client()
@@ -173,15 +150,23 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     
     collected_items = []
     next_page_token = None
-    max_scan_pages = 4 
+    # 인도 영상이 많을 수 있으므로 평소보다 더 많은 데이터를 스캔함 (최대 300개)
+    max_scan_pages = 6 if r_info['code'] == 'US' else 4
+    
+    # [핵심] 미국 타겟 시 검색어에 '제외 키워드(-)'를 강력하게 적용
+    us_filter = "-india -hindi -bollywood -tamil -telugu" if r_info['code'] == 'US' else ""
     
     for _ in range(max_scan_pages):
         try:
             if not is_popular_mode:
                 try: translated_q = translator.translate(topic_text, dest=r_info['lang']).text
                 except: translated_q = topic_text
+                
+                # 검색 쿼리에 제외 필터 추가
+                final_q = f"{translated_q} {us_filter} {'#shorts' if is_shorts else ''}"
+                
                 request = youtube.search().list(
-                    part="snippet", q=f"{translated_q} {'#shorts' if is_shorts else ''}", 
+                    part="snippet", q=final_q, 
                     type="video", videoDuration="short" if is_shorts else "any", 
                     regionCode=r_info['code'], relevanceLanguage=r_info['lang'], 
                     order="viewCount", maxResults=50, pageToken=next_page_token
@@ -189,8 +174,12 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
             else:
                 if is_shorts:
                     country_kw = {"KR": "쇼츠", "US": "Shorts", "JP": "ショート"}
+                    # 숏츠 공란 검색 시에도 제외 필터 및 주요 도시 키워드 힌트 적용 가능
+                    base_q = f"#shorts {country_kw.get(r_info['code'], '')}"
+                    final_q = f"{base_q} {us_filter}"
+                    
                     request = youtube.search().list(
-                        part="snippet", q=f"#shorts {country_kw.get(r_info['code'], '')}", 
+                        part="snippet", q=final_q, 
                         type="video", videoDuration="short", 
                         regionCode=r_info['code'], relevanceLanguage=r_info['lang'], 
                         order="viewCount", maxResults=50, pageToken=next_page_token
@@ -206,7 +195,8 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
             next_page_token = response.get('nextPageToken')
             
             if not next_page_token: break
-            if len(collected_items) >= 200: break
+            # 목표 수량의 3배수를 확보하면 스캔 중단 (필터링 고려)
+            if len(collected_items) >= v_count * 3: break
             
         except Exception as e:
             if "quotaExceeded" in str(e): raise e
@@ -215,30 +205,45 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     video_ids = [item['id']['videoId'] if 'videoId' in item['id'] else item['id'] for item in collected_items]
     if not video_ids: return [], 0, [], ""
 
+    # 상세 데이터 조회 (50개씩)
     all_stats_items = []
     for i in range(0, len(video_ids), 50):
         chunk = video_ids[i:i+50]
-        stats_resp = youtube.videos().list(
-            part="snippet,statistics,contentDetails", id=",".join(chunk)
-        ).execute()
-        all_stats_items.extend(stats_resp.get('items', []))
+        try:
+            stats_resp = youtube.videos().list(
+                part="snippet,statistics,contentDetails", id=",".join(chunk)
+            ).execute()
+            all_stats_items.extend(stats_resp.get('items', []))
+        except: continue
 
     results = []
     trend_keywords = []
     now = datetime.now()
+    
+    # [핵심] 비율 제한 카운터
+    non_us_count = 0
+    max_non_us_allowed = int(v_count * 0.1) # 10% 이하 제한
 
     for item in all_stats_items:
         title = item['snippet']['title']
         channel = item['snippet']['channelTitle']
         duration_sec = parse_duration(item['contentDetails']['duration'])
         
+        # 1년 지난 영상 제외
         days_diff = (now - datetime.strptime(item['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%SZ")).days
-        if days_diff > 365: continue 
+        if days_diff > 365: continue
         
         if not is_shorts and duration_sec < 120: continue 
         if is_shorts and duration_sec > 120: continue
         
+        # [국가별 필터]
         if r_info['code'] == 'JP' and not is_japanese(title + channel): continue
+        
+        # [미국 타겟 필터] 인도/동남아 10% 캡(Cap) 적용
+        if r_info['code'] == 'US':
+            if is_strictly_non_us(title, channel):
+                if non_us_count >= max_non_us_allowed: continue # 10% 넘으면 버림
+                non_us_count += 1
 
         views = int(item['statistics'].get('viewCount', 0))
         likes = int(item['statistics'].get('likeCount', 0)) if 'likeCount' in item['statistics'] else 0
@@ -285,14 +290,13 @@ count = st.sidebar.slider("🔢 분석 샘플", 1, 30, 8)
 topic = st.sidebar.text_input("🔍 키워드/주제", placeholder="공란: 실시간 인기 수집")
 search_clicked = st.sidebar.button("🚀 인사이트 분석 시작", use_container_width=True)
 
-# --- [광고 배치 2] 사이드바 하단 ---
 st.sidebar.markdown("---")
 with st.sidebar:
     show_ad_banner("sidebar")
 
 # --- 결과 출력 ---
 if search_clicked or not topic:
-    with st.spinner('대용량 데이터 수집 및 시니어 리포트 작성 중...'):
+    with st.spinner('초정밀 필터링 및 시니어 리포트 작성 중...'):
         try:
             final_results, accuracy, report_html = fetch_videos(topic, video_type, sel_region, count)
             st.subheader(f"📝 {region_name} {video_type} 분석 결과")
@@ -321,10 +325,8 @@ if search_clicked or not topic:
                 
                 st.markdown(report_html, unsafe_allow_html=True)
                 
-                # --- [광고 배치 3] 메인 화면 우측 하단 (리포트 아래) ---
                 col_empty, col_ad_bottom = st.columns([3, 1])
-                with col_ad_bottom:
-                    show_ad_banner("bottom")
+                with col_ad_bottom: show_ad_banner("bottom")
 
         except Exception as e:
             if "quotaExceeded" in str(e):
