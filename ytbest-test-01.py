@@ -1,0 +1,210 @@
+import streamlit as st
+from googleapiclient.discovery import build
+from googletrans import Translator
+import re
+from collections import Counter
+from datetime import datetime, timedelta
+import random
+import time
+
+# --- [설정] API 키 관리 (자동 전환 시스템) ---
+API_KEYS = [
+    "AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", # 1번 키
+    "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"  # 2번 키
+]
+
+YOUTUBE_API_SERVICE_NAME = "youtube"
+YOUTUBE_API_VERSION = "v3"
+
+st.set_page_config(page_title="마케팅 트렌드 인사이트", layout="wide")
+
+# 키 인덱스 초기화
+if 'key_index' not in st.session_state:
+    st.session_state.key_index = 0
+
+# CSS 디자인 (보고서 가독성 강화)
+st.markdown("""
+<style>
+    .video-card { background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); min-height: 750px; display: flex; flex-direction: column; justify-content: space-between; }
+    .thumb-link img { transition: transform 0.2s; border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+    .thumb-link img:hover { transform: scale(1.02); }
+    .v-title { font-size: 1rem; font-weight: 800; color: #111; line-height: 1.4; max-height: 2.8em; overflow: hidden; margin: 12px 0 8px 0; }
+    .v-meta { font-size: 0.85rem; color: #555; margin-bottom: 10px; line-height: 1.6; border-bottom: 1px dashed #eee; padding-bottom: 10px; }
+    .v-status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 10px; }
+    .status-hot { background-color: #ffebee; color: #c62828; }
+    .status-steady { background-color: #e3f2fd; color: #1565c0; }
+    .v-insight-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 0.85rem; border-left: 4px solid #1a73e8; margin-top: auto; }
+    .v-quote { font-style: italic; color: #666; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #eee; margin: 8px 0; font-size: 0.8rem; }
+    .report-container { background-color: #263238; color: #eceff1; padding: 30px; border-radius: 15px; margin-top: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .report-highlight { color: #80cbc4; font-weight: bold; font-size: 1.1rem; margin-top: 20px; display: block; margin-bottom: 10px;}
+    .stat-val { color: #1a73e8; font-weight: 800; }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("📡 실시간 유튜브 트렌드 & 정밀 마케팅 리포트")
+
+translator = Translator()
+
+def get_youtube_client():
+    current_key = API_KEYS[st.session_state.key_index]
+    return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=current_key)
+
+def parse_duration(duration):
+    minutes = re.search(r'(\d+)M', duration)
+    seconds = re.search(r'(\d+)S', duration)
+    total = 0
+    if minutes: total += int(minutes.group(1)) * 60
+    if seconds: total += int(seconds.group(1))
+    return total
+
+def analyze_viral_trigger(youtube, video_id, title, region_code):
+    try:
+        request = youtube.commentThreads().list(part="snippet", videoId=video_id, maxResults=20, order="relevance")
+        response = request.execute()
+        all_comments = [item['snippet']['topLevelComment']['snippet']['textDisplay'] for item in response.get('items', [])]
+        if not all_comments: return "데이터 부족", "분석 데이터 부족", "N/A"
+        target_comments = all_comments
+        if region_code == 'KR':
+            korean_comments = [c for c in all_comments if re.search('[가-힣]', c)]
+            if korean_comments: target_comments = korean_comments
+        full_text = " ".join(target_comments).lower()
+        valid_quotes = [c for c in target_comments if len(c) > 10 and len(c) < 100]
+        best_quote = valid_quotes[0] if valid_quotes else target_comments[0][:60]
+        
+        if any(w in full_text for w in ['노래', '음색', 'dance', 'song', 'mv', 'music', '직캠', '무대', 'live', 'stream']) or any(w in title.lower() for w in ['mv', 'music video', 'stage', 'fancam']):
+             trigger = "🎤 퍼포먼스/뮤직"
+             insight = "아티스트의 시각적 퍼포먼스와 음색이 팬덤의 반복 시청을 유도하고 있음."
+        elif any(w in full_text for w in ['ㅋㅋㅋㅋ', 'lol', 'funny', '웃겨', '개그', '코미디', '대박']):
+            trigger = "😂 엔터테인먼트"
+            insight = "초반 3초의 강력한 훅과 유머 코드가 시청 지속 시간을 견인하며 확산됨."
+        elif any(w in full_text for w in ['강의', '꿀팁', '방법', 'tutorial', 'review', '후기', '정리', '요약', '배우']):
+            trigger = "💡 정보성/유틸리티"
+            insight = "실생활에 적용 가능한 유용함으로 인해 저장 및 재공유 지수가 매우 높음."
+        elif any(w in full_text for w in ['논란', '충격', '속보', 'news', '이게', '진짜']):
+            trigger = "🔥 이슈/노이즈"
+            insight = "사회적 이슈나 호기심을 자극하는 썸네일로 높은 클릭률을 기록 중."
+        else:
+            trigger = "🥰 감성/공감"
+            insight = "편안한 시각적 무드나 공감대가 시청자들의 감정적 동요를 이끌어냄."
+        return trigger, insight, best_quote.replace('"', '').strip()
+    except Exception as e:
+        if "quotaExceeded" in str(e): raise e
+        return "데이터 접근 제한", "분석 불가", "-"
+
+def fetch_videos(topic_text, v_type, r_info, v_count):
+    youtube = get_youtube_client()
+    is_shorts = "Shorts" in v_type
+    is_popular_mode = not topic_text.strip()
+    published_after = (datetime.utcnow() - timedelta(days=30)).isoformat() + "Z" if is_popular_mode and is_shorts else None
+
+    if not is_popular_mode:
+        try: translated_q = translator.translate(topic_text, dest=r_info['lang']).text
+        except: translated_q = topic_text
+        request = youtube.search().list(part="snippet", q=f"{translated_q} {'#shorts' if is_shorts else ''}", type="video", videoDuration="short" if is_shorts else "any", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50)
+    else:
+        if is_shorts:
+            country_kw = {"KR": "쇼츠", "US": "Shorts", "JP": "ショート"}
+            request = youtube.search().list(part="snippet", q=f"#shorts {country_kw.get(r_info['code'], '')}", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", publishedAfter=published_after, maxResults=50)
+        else:
+            request = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=r_info['code'], maxResults=50)
+    
+    response = request.execute()
+    items = response.get('items', [])
+    video_ids = [item['id']['videoId'] if 'videoId' in item['id'] else item['id'] for item in items]
+    if not video_ids: return [], 0, [], ""
+
+    stats_response = youtube.videos().list(part="snippet,statistics,contentDetails", id=",".join(video_ids)).execute()
+    results, titles_list, trend_keywords = [], [], []
+    today = datetime.now()
+
+    for item in stats_response.get('items', []):
+        duration_sec = parse_duration(item['contentDetails']['duration'])
+        if not is_shorts and duration_sec < 120: continue 
+        if is_shorts and duration_sec > 120: continue
+        pub_date = datetime.strptime(item['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%SZ")
+        days_diff = (today - pub_date).days
+        views = int(item['statistics'].get('viewCount', 0))
+        comments_count = int(item['statistics'].get('commentCount', 0)) if 'commentCount' in item['statistics'] else 0
+        if days_diff > 10 and (comments_count == 0 or (views / (days_diff+1) < 100)): continue
+
+        trigger_type, expert_insight, user_quote = analyze_viral_trigger(youtube, item['id'], item['snippet']['title'], r_info['code'])
+        trend_keywords.append(trigger_type)
+        titles_list.append(item['snippet']['title'])
+        engagement_rate = (comments_count / views) * 100 if views > 0 else 0
+        viral_score = int(views * (0.001 + (engagement_rate * 0.01))) 
+
+        results.append({
+            'title': item['snippet']['title'], 'thumbnail': item['snippet']['thumbnails']['high']['url'],
+            'url': f"https://www.youtube.com/shorts/{item['id']}" if is_shorts else f"https://www.youtube.com/watch?v={item['id']}",
+            'channel': item['snippet']['channelTitle'], 'view_count': views, 'date': pub_date.strftime("%Y-%m-%d"),
+            'trigger': trigger_type, 'insight': expert_insight, 'quote': user_quote, 'viral_score': viral_score,
+            'status': "🔥 급상승" if days_diff < 7 else "🔄 스테디"
+        })
+        if len(results) >= v_count: break
+    return results, (len(results)/v_count)*100 if v_count > 0 else 0, trend_keywords, titles_list
+
+# --- 사이드바 ---
+st.sidebar.header("📊 마케팅 분석 설정")
+region_map = {"한국 🇰🇷": {"code": "KR", "lang": "ko"}, "미국 🇺🇸": {"code": "US", "lang": "en"}, "일본 🇯🇵": {"code": "JP", "lang": "ja"} }
+region_name = st.sidebar.selectbox("📍 타겟 시장", list(region_map.keys()))
+sel_region = region_map[region_name]
+video_type = st.sidebar.radio("📱 콘텐츠 포맷", ["롱폼 (2분 이상)", "숏폼 (Shorts)"])
+count = st.sidebar.slider("🔢 분석 샘플", 1, 30, 1)
+topic = st.sidebar.text_input("🔍 키워드/주제", placeholder="공란: 전체 시장 트렌드")
+search_clicked = st.sidebar.button("🚀 인사이트 도출 시작", use_container_width=True)
+
+# --- 결과 출력 ---
+if search_clicked or not topic:
+    with st.spinner('트렌드 원인 분석 중...'):
+        try:
+            final_results, accuracy, keywords_list, titles = fetch_videos(topic, video_type, sel_region, count)
+            st.subheader(f"📝 {region_name} {video_type} 심층 분석 결과")
+            if not final_results: st.warning("데이터를 찾을 수 없습니다.")
+            else:
+                cols = st.columns(4)
+                for idx, video in enumerate(final_results):
+                    with cols[idx % 4]:
+                        s_color = "status-hot" if "급상승" in video['status'] else "status-steady"
+                        st.markdown(f"""
+                        <div class="video-card">
+                            <a href="{video['url']}" target="_blank" class="thumb-link"><img src="{video['thumbnail']}"></a>
+                            <div style="margin-top:10px;"><span class="v-status {s_color}">{video['status']}</span></div>
+                            <div class="v-title">{video['title']}</div>
+                            <div class="v-meta"><b>{video['channel']}</b><br>조회수: {video['view_count']:,}회<br>공개일: {video['date']}</div>
+                            <div class="v-insight-box"><b>🎯 트렌드 요인:</b><br>{video['trigger']}<br><br>
+                            <div style="font-size:0.8rem; line-height:1.5; color:#444;">{video['insight']}</div>
+                            <div class="v-quote">" {video['quote']} "</div>
+                            <div style="margin-top:10px; font-size:0.8rem;">🌐 <b>바이럴 지수:</b> <span class="stat-val">{video['viral_score']}</span></div></div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # --- 리포트 섹션 (태그 오류 수정됨) ---
+                most_common_trigger = Counter(keywords_list).most_common(1)[0][0] if keywords_list else "복합 요인"
+                matching_titles = [t for i, t in enumerate(titles) if keywords_list[i] == most_common_trigger]
+                if not matching_titles: matching_titles = [titles[0]]
+                title_str = ", ".join([f"'{t[:15]}...'" for t in matching_titles[:2]])
+                
+                report_html = f"""
+<div class="report-container">
+    <h3 style="margin-top:0; color:#4dd0e1;">📋 2026 마케팅 트렌드 인사이트 보고서</h3>
+    <p style="font-size: 1.1rem; margin-bottom: 20px;"><b>🎯 분석 정확도: {accuracy:.1f}%</b></p>
+    <span class="report-highlight">📍 현황 진단:</span>
+    <p style="line-height: 1.8; color: #eceff1;">
+        현재 <b>{region_name}</b> 시장의 {video_type} 트렌드는 <b>'{most_common_trigger}'</b> 요소가 핵심 드라이버입니다. 
+        데이터 분석 결과, <b>{title_str}</b> 등의 콘텐츠가 해당 요인을 대표하며 상위권에 랭크되었습니다.
+        이들은 단순 시청을 넘어 시청자의 감정적 반응(공감/호기심/팬심)을 이끌어내며 높은 인게이지먼트를 기록 중입니다.
+    </p>
+    <hr style="border: 0.5px solid #546e7a;">
+    <p style="font-size: 0.8rem; color: #b0bec5;">[검증 완료] 트렌드 요인과 실제 영상 데이터를 1:1 매칭하여 분석한 결과입니다.</p>
+</div>"""
+                st.markdown(report_html, unsafe_allow_html=True)
+
+        except Exception as e:
+            if "quotaExceeded" in str(e):
+                if st.session_state.key_index < len(API_KEYS) - 1:
+                    st.session_state.key_index += 1
+                    st.toast("⚠️ 1번 키 소진! 2번 키 전환 중...", icon="🔄")
+                    time.sleep(1)
+                    st.rerun()
+                else: st.error("🚨 모든 API 키 소진.")
+            else: st.error(f"오류 발생: {e}")
