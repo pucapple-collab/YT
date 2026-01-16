@@ -17,6 +17,42 @@ st.set_page_config(page_title="Global Trend Intelligence", layout="wide")
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
+# --- [광고] 광고 배너 함수 ---
+def show_ad_banner(position):
+    """
+    position: 'sidebar', 'top', 'bottom'
+    본인의 광고 이미지 URL과 링크로 교체하세요.
+    """
+    # 예시 광고 데이터 (쿠팡 파트너스 배너 등을 여기에 넣으세요)
+    ad_data = {
+        "sidebar": {
+            "img": "https://via.placeholder.com/300x250.png?text=Sidebar+Ad+Area", # 300x250 사이즈 추천
+            "link": "https://www.google.com"
+        },
+        "top": {
+            "img": "https://via.placeholder.com/468x60.png?text=Top+Right+Banner", # 468x60 사이즈 추천
+            "link": "https://www.youtube.com"
+        },
+        "bottom": {
+            "img": "https://via.placeholder.com/300x250.png?text=Bottom+Right+Ad", # 300x250 사이즈 추천
+            "link": "https://www.netflix.com"
+        }
+    }
+    
+    data = ad_data.get(position)
+    
+    if data:
+        # 광고 HTML 생성 (클릭 시 새 창 열림)
+        html_code = f"""
+        <div style="text-align: right; margin: 10px 0;">
+            <a href="{data['link']}" target="_blank">
+                <img src="{data['img']}" style="width: 100%; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            </a>
+            <div style="font-size: 10px; color: #999; text-align: right; margin-top: 2px;">ADVERTISEMENT</div>
+        </div>
+        """
+        st.markdown(html_code, unsafe_allow_html=True)
+
 # CSS 디자인
 st.markdown("""
 <style>
@@ -42,39 +78,22 @@ st.markdown("""
     
     .v-insight-box { background-color: #f8f9fa; padding: 10px; border-radius: 8px; font-size: 0.8rem; border-left: 3px solid #1a73e8; }
     
-    /* 리포트 스타일 */
-    .report-container { 
-        background-color: #1e293b; 
-        color: #f1f5f9; 
-        padding: 30px; 
-        border-radius: 15px; 
-        margin-top: 40px; 
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
-    }
-    .report-title { 
-        color: #38bdf8; 
-        font-size: 1.5rem; 
-        font-weight: bold; 
-        margin-bottom: 20px; 
-        border-bottom: 1px solid #475569; 
-        padding-bottom: 10px; 
-    }
-    .report-section { margin-bottom: 20px; }
-    .report-label { 
-        color: #94a3b8; 
-        font-size: 0.85rem; 
-        font-weight: bold; 
-        text-transform: uppercase; 
-        letter-spacing: 1px; 
-        margin-bottom: 5px;
-    }
-    .report-content { font-size: 1rem; line-height: 1.7; }
+    .report-container { background-color: #1e293b; color: #f1f5f9; padding: 30px; border-radius: 15px; margin-top: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .report-title { color: #38bdf8; font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; border-bottom: 1px solid #475569; padding-bottom: 10px; }
+    .report-section { margin-bottom: 15px; }
+    .report-label { color: #94a3b8; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+    .report-content { font-size: 1rem; line-height: 1.7; margin-top: 5px; }
     .highlight { color: #facc15; font-weight: bold; }
     .stat-val { color: #1a73e8; font-weight: 800; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📡 실시간 글로벌 트렌드 인텔리전스")
+# --- [광고 배치 1] 메인 화면 상단 (제목 우측) ---
+col_title, col_ad_top = st.columns([3, 1]) # 3:1 비율로 분할
+with col_title:
+    st.title("📡 실시간 글로벌 트렌드 인텔리전스")
+with col_ad_top:
+    show_ad_banner("top")
 
 translator = Translator()
 
@@ -98,9 +117,6 @@ def is_japanese(text):
     return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', text))
 
 def generate_expert_report(region_display_name, video_type, results, keywords):
-    """
-    시니어급 마케팅 리포트 생성 (HTML 태그 오류 수정됨)
-    """
     if not results: return "데이터 부족으로 리포트를 생성할 수 없습니다."
     
     avg_views = statistics.mean([v['view_raw'] for v in results])
@@ -116,8 +132,6 @@ def generate_expert_report(region_display_name, video_type, results, keywords):
     elif "한국" in region_display_name:
         context = "한국 시장은 '공감대 형성'과 '빠른 정보 전달'이 핵심이며, 댓글을 통한 커뮤니티 형성이 트렌드 지속성을 결정합니다."
 
-    # [수정] 들여쓰기 문제 해결을 위해 f-string을 한 줄로 연결하거나 textwrap 사용
-    # 여기서는 가독성을 위해 명확한 HTML 구조로 반환
     html_content = f"""
 <div class="report-container">
     <div class="report-title">📊 2026 {region_display_name} 마케팅 트렌드 인사이트 보고서</div>
@@ -251,12 +265,6 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     results.sort(key=lambda x: (x['tier'], -x['v_point']))
     final_list = results[:v_count]
     
-    # [수정] 보고서 생성 시 지역명(Region Name) 전달
-    # region_name 변수는 사이드바에서 선택된 값 (예: "한국 🇰🇷")
-    # 하지만 여기 함수 인자에는 없으므로 fetch_videos 호출 시 사용된 region_map 키를 찾아야 함
-    # 편의상 fetch_videos 호출 후 리턴값에서 해결하거나, 여기서 해결.
-    # 여기서는 간단히 r_info['code']를 기반으로 역추적하거나 외부에서 전달받는 게 좋음.
-    # 함수 구조상 내부에서 처리:
     display_name = f"{r_info['code']} 시장"
     if r_info['code'] == 'KR': display_name = "한국 🇰🇷"
     elif r_info['code'] == 'US': display_name = "미국 🇺🇸"
@@ -276,6 +284,11 @@ video_type = st.sidebar.radio("📱 콘텐츠 포맷", ["롱폼 (2분 이상)", 
 count = st.sidebar.slider("🔢 분석 샘플", 1, 30, 8)
 topic = st.sidebar.text_input("🔍 키워드/주제", placeholder="공란: 실시간 인기 수집")
 search_clicked = st.sidebar.button("🚀 인사이트 분석 시작", use_container_width=True)
+
+# --- [광고 배치 2] 사이드바 하단 ---
+st.sidebar.markdown("---")
+with st.sidebar:
+    show_ad_banner("sidebar")
 
 # --- 결과 출력 ---
 if search_clicked or not topic:
@@ -306,8 +319,12 @@ if search_clicked or not topic:
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # [수정] 리포트 HTML 출력 시 unsafe_allow_html=True 필수
                 st.markdown(report_html, unsafe_allow_html=True)
+                
+                # --- [광고 배치 3] 메인 화면 우측 하단 (리포트 아래) ---
+                col_empty, col_ad_bottom = st.columns([3, 1])
+                with col_ad_bottom:
+                    show_ad_banner("bottom")
 
         except Exception as e:
             if "quotaExceeded" in str(e):
