@@ -8,12 +8,16 @@ import statistics
 import random
 import time
 
-# --- [설정] API 키 관리 ---
-API_KEYS = ["AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"]
+# --- [설정] API 키 관리 (자동 전환 시스템) ---
+API_KEYS = [
+    "AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", 
+    "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"
+]
+
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
-st.set_page_config(page_title="Team SENA: Core Report", layout="wide")
+st.set_page_config(page_title="Trend Lead SENA", layout="wide")
 
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
@@ -55,7 +59,7 @@ def show_ad(pos):
     st.markdown(f'<div style="text-align:right; margin-bottom:10px;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px;"></a></div>', unsafe_allow_html=True)
 
 col_t1, col_t2 = st.columns([3, 1])
-with col_t1: st.title("📡 글로벌 트렌드 인텔리전스 (SENA)")
+with col_t1: st.title("📡 실시간 글로벌 트렌드 인텔리전스 (SENA)")
 with col_t2: show_ad("top")
 
 translator = Translator()
@@ -85,7 +89,6 @@ def calculate_v_point(views, likes, comments):
     if views == 0: return 0
     return int((views * 0.001) * (1 + (likes/views*10) + (comments/views*50)))
 
-# --- [팀장 '세나'의 핵심 리포트 - 요청 항목만 유지] ---
 def generate_sena_report(region_name, video_type, results, keywords):
     if not results: return ""
     avg_views = statistics.mean([v['view_raw'] for v in results])
@@ -93,7 +96,7 @@ def generate_sena_report(region_name, video_type, results, keywords):
     top_k = [k for k, c in Counter(keywords).most_common(3)]
     k_str = ", ".join(top_k)
     
-    # 1번과 3번 항목만 남김 (들여쓰기 제거 필수)
+    # [수정] 들여쓰기를 제거하여 HTML이 코드로 보이는 현상 방지
     report_html = f"""
 <div class="report-container">
 <div class="report-header">🚩 세나 팀장의 현장형 실행 리포트</div>
@@ -218,8 +221,15 @@ if search_clicked or not topic:
                             <div class="v-insight-box">🌐 <b>Viral Point:</b> <span style="color:#1a73e8; font-weight:800;">{v['v_point']:,}</span></div>
                         </div>
                         """, unsafe_allow_html=True)
+                
+                # 리포트 출력
                 st.markdown(report, unsafe_allow_html=True)
-                c1, c2 = st.columns([3, 1]); with c2: show_ad("bottom")
+                
+                # [수정] SyntaxError가 발생하던 부분을 두 줄로 분리하여 해결
+                c1, c2 = st.columns([3, 1])
+                with c2: 
+                    show_ad("bottom")
+                    
         except Exception as e:
             if "quotaExceeded" in str(e):
                 if st.session_state.key_index < len(API_KEYS) - 1:
