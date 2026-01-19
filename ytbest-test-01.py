@@ -8,7 +8,7 @@ import statistics
 import random
 import time
 
-# --- [설정] API 키 관리 ---
+# --- [설정] API 키 관리 (자동 전환 시스템) ---
 API_KEYS = [
     "AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", 
     "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"
@@ -17,30 +17,37 @@ API_KEYS = [
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
-st.set_page_config(page_title="Team SENA: Trend Intelligence", layout="wide")
+st.set_page_config(page_title="Team SENA: Trend Lead", layout="wide")
 
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
-# --- CSS 디자인 ---
+# --- CSS 디자인 (프레임 최적화) ---
 st.markdown("""
 <style>
-.video-card { background-color: #ffffff; padding: 18px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; height: 100%; }
-.thumb-link img { transition: transform 0.2s; border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
-.v-title { font-size: 0.95rem; font-weight: 800; color: #111; line-height: 1.4; max-height: 2.8em; overflow: hidden; margin: 10px 0 5px 0; }
-.v-meta { font-size: 0.82rem; color: #555; margin-bottom: 5px; line-height: 1.4; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
-.v-status { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-bottom: 5px; }
-.status-hot { background-color: #ffebee; color: #c62828; }
-.status-steady { background-color: #e3f2fd; color: #1565c0; }
-.v-insight-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 0.82rem; border-left: 4px solid #1a73e8; margin-top: 5px; }
-.report-container { background-color: #1a1c1e; color: #e1e1e1; padding: 35px; border-radius: 20px; margin-top: 40px; border: 2px solid #ff4b4b; }
-.report-header { font-size: 1.7rem; font-weight: 900; color: #ff4b4b; border-bottom: 2px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 25px; }
-.section-title { font-size: 1.2rem; font-weight: bold; color: #ffeb3b; margin-top: 25px; margin-bottom: 12px; }
-.section-content { background: #25282c; padding: 18px; border-radius: 12px; line-height: 1.8; font-size: 0.95rem; color: #eee; border: 1px solid #333; }
-.expert-tip { background-color: #ff4b4b; color: white; padding: 15px; border-radius: 10px; font-weight: bold; margin-top: 30px; text-align: center; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; color: #eee; background: #333; }
-th, td { border: 1px solid #444; padding: 10px; text-align: center; }
-th { color: #ffeb3b; }
+    .video-card { 
+        background-color: #ffffff; padding: 18px; border-radius: 12px; border: 1px solid #e0e0e0; 
+        margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
+        display: flex; flex-direction: column; height: 100%;
+    }
+    .thumb-link img { transition: transform 0.2s; border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+    .thumb-link img:hover { transform: scale(1.02); }
+    .v-title { font-size: 0.95rem; font-weight: 800; color: #111; line-height: 1.4; max-height: 2.8em; overflow: hidden; margin: 10px 0 5px 0; }
+    .v-meta { font-size: 0.82rem; color: #555; margin-bottom: 5px; line-height: 1.4; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
+    .v-status { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-bottom: 5px; }
+    .status-hot { background-color: #ffebee; color: #c62828; }
+    .status-steady { background-color: #e3f2fd; color: #1565c0; }
+    .v-insight-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 0.82rem; border-left: 4px solid #1a73e8; margin-top: 5px; }
+    
+    /* 세나 팀장 리포트 컨테이너 */
+    .report-container { background-color: #1a1c1e; color: #e1e1e1; padding: 35px; border-radius: 20px; margin-top: 40px; border: 2px solid #ff4b4b; }
+    .report-header { font-size: 1.7rem; font-weight: 900; color: #ff4b4b; border-bottom: 2px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 25px; }
+    .section-title { font-size: 1.2rem; font-weight: bold; color: #ffeb3b; margin-top: 25px; margin-bottom: 12px; }
+    .section-content { background: #25282c; padding: 18px; border-radius: 12px; line-height: 1.8; font-size: 0.95rem; color: #eee; border: 1px solid #333; }
+    .expert-tip { background-color: #ff4b4b; color: white; padding: 15px; border-radius: 10px; font-weight: bold; margin-top: 30px; text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; color: #eee; background: #333; }
+    th, td { border: 1px solid #444; padding: 10px; text-align: center; }
+    th { color: #ffeb3b; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,11 +58,11 @@ def show_ad(pos):
         "bottom": {"img": "https://via.placeholder.com/300x250.png?text=REPORT+AD", "link": "#"}
     }
     ad = ads.get(pos)
-    st.markdown(f'<div style="text-align:right;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px;"></a></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:right; margin-bottom:10px;"><a href="{ad["link"]}" target="_blank"><img src="{ad["img"]}" style="width:100%; border-radius:8px;"></a></div>', unsafe_allow_html=True)
 
-t_col1, t_col2 = st.columns([3, 1])
-with t_col1: st.title("📡 글로벌 트렌드 인텔리전스 (Deep Scan)")
-with t_col2: show_ad("top")
+col_t1, col_t2 = st.columns([3, 1])
+with col_t1: st.title("📡 실시간 글로벌 트렌드 인텔리전스 (SENA)")
+with col_t2: show_ad("top")
 
 translator = Translator()
 
@@ -84,38 +91,35 @@ def calculate_v_point(views, likes, comments):
     if views == 0: return 0
     return int((views * 0.001) * (1 + (likes/views*10) + (comments/views*50)))
 
-# --- [수정 핵심: 모든 줄의 들여쓰기를 제거한 평탄한 HTML] ---
+# --- [팀장 '세나'의 리포트 엔진 - HTML 출력 버그 및 들여쓰기 완벽 수정] ---
 def generate_sena_report(region_name, video_type, results, keywords):
     if not results: return ""
     avg_views = statistics.mean([v['view_raw'] for v in results])
     avg_viral = statistics.mean([v['v_point'] for v in results])
     top_k = [k for k, c in Counter(keywords).most_common(3)]
-    keyword_str = ", ".join(top_k)
+    k_str = ", ".join(top_k)
     
-    # 제작 가능성 분석 로직
-    feasibility = "매우 높음. 기획만 나오면 1시간 컷이야." if "Shorts" in video_type else "중간. 스크립트랑 편집에 공 좀 들여야 해."
-
-    # 문자열 앞에 공백이 있으면 안됨 (절대 왼쪽 정렬 필수)
+    # 모든 줄의 시작 공백을 완전히 제거하여 코드 블록화 방지
     report_html = f"""
 <div class="report-container">
 <div class="report-header">🚩 세나 팀장의 현장형 실행 리포트</div>
 <div style="font-size: 0.9rem; color: #888; margin-bottom: 20px;">2026 {region_name} {video_type} 시장 | 데이터 기반 의사결정 완료</div>
-<div class="section-title">📊 1. [데이터 추출] 핵심 수치 도출</div>
+<div class="section-title">📊 1. [데이터 추출] 핵심 지표 요약</div>
 <div class="section-content">
 자, 데이터부터 깔끔하게 정리해줄게. 지금 이 바닥에서 '알고리즘 간택' 받으려면 이 정도 숫자는 나와야 해.
 <table>
 <tr><th>평균 조회수</th><th>평균 Viral Point</th><th>핵심 DNA</th></tr>
-<tr><td>{int(avg_views):,}회</td><td>{int(avg_viral):,}점</td><td>{keyword_str}</td></tr>
+<tr><td>{int(avg_views):,}회</td><td>{int(avg_viral):,}점</td><td>{k_str}</td></tr>
 </table>
-특히 Viral Point 튀는 애들은 <b>댓글 반응(인게이지먼트)</b>이 깡패라는 거 잊지 마.
+특히 Viral Point가 튀는 애들은 조회수보다 <b>댓글 반응(인게이지먼트)</b>이 깡패라는 거 잊지 마.
 </div>
 <div class="section-title">🛠️ 2. [콘텐츠 제작 가능성] 당장 만들 수 있어?</div>
 <div class="section-content">
-솔직히 말할게. 이 트렌드는 <b>{feasibility}</b><br>
-• <b>기술적 난이도:</b> 하(Low). 핵심은 "{top_k[0] if top_k else '트렌드'}" 소재를 얼마나 빨리 선점하느냐야.<br>
-• <b>비용 예측:</b> 기존 소스 재가공(Remix)만 잘해도 제작비 0원으로 떡상 가능해.
+솔직히 말할게. 이 트렌드는 우리 리소스로 <b>충분히 재현 가능해.</b><br>
+• <b>기술적 난이도:</b> 하(Low). 퀄리티보다 "{top_k[0] if top_k else '핵심'}" 소재를 어떻게 비트느냐가 관건이야.<br>
+• <b>비용 예측:</b> 촬영비보다 '3초 후킹' 자막이랑 썸네일에 공들이는 게 훨씬 가성비 좋아.
 </div>
-<div class="section-title">🗨️ 3. [실제 시청자 반응 예측] 왜 댓글 전쟁터가 됐을까?</div>
+<div class="section-title">🗨️ 3. [시청자 반응 예측] 왜 댓글 전쟁터가 됐을까?</div>
 <div class="section-content">
 시청자들은 지금 <b>"{top_k[0] if top_k else '이 주제'}"</b>에 대해 단순히 보는 게 아니라 <b>'자기 얘기'</b>라고 느껴서 댓글창으로 달려오고 있어.<br>
 👉 <b>심리 분석:</b> 상위권 영상들은 전부 <b>'공감'</b> 아니면 <b>'비교'</b>를 건드려. "너는 어때?"라고 묻는 순간 Viral Point 폭발하는 구조야.
@@ -127,14 +131,15 @@ def generate_sena_report(region_name, video_type, results, keywords):
 </div>
 <div class="section-title">📝 5. [6하원칙 기획안] 내일 당장 찍어!</div>
 <div class="section-content">
-• <b>Who:</b> {region_name} 내 MZ/알파 타겟군<br>
-• <b>When:</b> 알고리즘 피크 타임(주말 저녁) 업로드<br>
+딴소리 말고 이대로만 해.<br>
+• <b>Who:</b> {region_name} 내 {top_k[0] if top_k else '타겟'} 오디언스<br>
+• <b>When:</b> 알고리즘 피크 타임인 주말 저녁 업로드<br>
 • <b>Where:</b> 세로형 9:16 최적화 숏폼 피드<br>
-• <b>What:</b> '{top_k[0] if top_k else '트렌드'}' 주제의 반전 결과 혹은 순위 매기기<br>
+• <b>What:</b> '{top_k[0] if top_k else '주제'}'의 반전 결과 혹은 순위 매기기<br>
 • <b>How:</b> 첫 1초에 "절대 모르는 사실" 같은 후킹 자막 필수로 박기<br>
 • <b>Why:</b> 현재 수집 데이터 중 성공 확률이 가장 높은 포맷임
 </div>
-<div class="expert-tip">💡 10년 차 세나 팀장의 한 줄 팁: "조회수는 알고리즘이 주고, 바이럴은 댓글이 만든다. 시청자 손가락을 움직이게 만들어!"</div>
+<div class="expert-tip">💡 10년 차 세나 팀장의 한 줄 팁: "바이럴은 조회수가 만드는 게 아니라 댓글이 만드는 거야. 시청자 손가락을 움직이게 만들어!"</div>
 </div>
 """
     return report_html
@@ -211,7 +216,7 @@ def fetch_videos(topic_text, v_type, r_info, v_count):
     report = generate_sena_report(region_name, "Shorts" if is_shorts else "Long-form", final, kws)
     return final, (len(final)/v_count)*100 if v_count > 0 else 0, report
 
-# --- 사이드바 및 실행 ---
+# --- 사이드바 ---
 st.sidebar.header("📊 마케팅 분석 설정")
 region_map = {"한국 🇰🇷": {"code": "KR", "lang": "ko"}, "미국 🇺🇸": {"code": "US", "lang": "en"}, "일본 🇯🇵": {"code": "JP", "lang": "ja"} }
 region_name = st.sidebar.selectbox("📍 타겟 시장", list(region_map.keys()))
@@ -221,6 +226,10 @@ count = st.sidebar.slider("🔢 분석 샘플", 1, 30, 8)
 topic = st.sidebar.text_input("🔍 키워드/주제", placeholder="공란: 국가별 트렌드 수집")
 search_clicked = st.sidebar.button("🚀 인사이트 분석 시작", use_container_width=True)
 
+st.sidebar.markdown("---")
+with st.sidebar: show_ad("sidebar")
+
+# --- 결과 출력 ---
 if search_clicked or not topic:
     with st.spinner('세나 팀장이 데이터를 딥 스캔하는 중...'):
         try:
@@ -242,10 +251,14 @@ if search_clicked or not topic:
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # 정제된 HTML 리포트 출력
+                # 리포트 출력
                 st.markdown(report, unsafe_allow_html=True)
                 
-                c1, c2 = st.columns([3, 1]); with c2: show_ad("bottom")
+                # 하단 광고
+                c1, c2 = st.columns([3, 1])
+                with c2:
+                    show_ad("bottom")
+                    
         except Exception as e:
             if "quotaExceeded" in str(e):
                 if st.session_state.key_index < len(API_KEYS) - 1:
