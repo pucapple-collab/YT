@@ -9,59 +9,44 @@ import random
 import time
 import streamlit.components.v1 as components
 
-# --- [설정] API 키 관리 ---
+# --- [설정] 관리 및 API 키 ---
 MASTER_ACCESS_KEY = "CLOUD-ENT-VIP" 
 API_KEYS = [
-    "AIzaSyCS0ITaVrJ4D8bbYS8zxWpLIN7h5qpz47Q", 
-    "AIzaSyDOm5iXZPgVVQiD9UrrhGrW_X1goigl0eU"
+    "AIzaSyCS0ITaVrJ4D8bbYS8zxWpLIN7h5qpz47Q",
+    "AIzaSyDOm5iXZPgVVQiD9UrrhGrW_X1goigl0eU",
+    "AIzaSyCANj0BHbejmyaxFR7TLbOggOeykQe3-a8",
+    "AIzaSyAovyzahHB-Bw2oZ4x4eXblIzws_3mXKL0",
+    "AIzaSyAN_J7dDXuThijWabzxEZXnjjXSvNMO2hw"
 ]
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
-st.set_page_config(page_title="Cloud Ent. Trend Intelligence", layout="wide")
+st.set_page_config(page_title="Team SENA: Trend Intelligence", layout="wide")
 
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
-# --- [디자인 패치] 찌그러짐 방지 및 깔끔한 레이아웃 ---
+# --- CSS 디자인 (찌그러짐 방지 및 가독성 최적화) ---
 st.markdown("""
 <style>
-    /* 전체 배경색 */
-    .stApp { background-color: #fcfcfc; }
-    
-    /* 비디오 카드 디자인 (찌그러짐 방지) */
     .video-card { 
         background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #eef0f2; 
-        margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); 
-        display: flex; flex-direction: column; 
-        min-width: 250px; /* 카드의 최소 너비 고정 */
-        height: 100%;
+        margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+        display: flex; flex-direction: column; min-width: 260px; height: 100%;
     }
     .thumb-link img { border-radius: 8px; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
-    
-    .v-title { font-size: 1rem; font-weight: 800; color: #111; line-height: 1.4; height: 2.8em; overflow: hidden; margin: 12px 0 8px 0; }
-    .v-meta { font-size: 0.85rem; color: #555; margin-bottom: 10px; line-height: 1.6; border-bottom: 1px dashed #eee; padding-bottom: 10px; }
-    
-    .v-status { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 10px; }
+    .v-title { font-size: 0.95rem; font-weight: 800; color: #111; line-height: 1.4; height: 2.8em; overflow: hidden; margin: 10px 0 5px 0; }
+    .v-meta { font-size: 0.8rem; color: #555; margin-bottom: 8px; line-height: 1.5; border-bottom: 1px dashed #eee; padding-bottom: 8px; }
+    .v-status { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-bottom: 10px; }
     .status-hot { background-color: #ffebee; color: #c62828; }
     .status-steady { background-color: #e3f2fd; color: #1565c0; }
-    
-    /* Viral Point 박스 개선 (숫자 꺾임 방지) */
-    .v-insight-box { 
-        background-color: #f0f7ff; padding: 12px; border-radius: 8px; 
-        font-size: 0.85rem; border-left: 5px solid #1a73e8; margin-top: auto;
-    }
-    .stat-val { color: #1a73e8; font-weight: 800; font-size: 1.1rem; display: block; margin-top: 2px; }
-
-    /* 리포트 디자인 */
+    .v-insight-box { background-color: #f0f7ff; padding: 12px; border-radius: 8px; font-size: 0.82rem; border-left: 5px solid #1a73e8; margin-top: auto; }
     .report-container { background-color: #1a1c1e; color: #e1e1e1; padding: 30px; border-radius: 20px; margin-top: 40px; border: 2px solid #ff4b4b; }
-    .report-header { font-size: 1.7rem; font-weight: 900; color: #ff4b4b; border-bottom: 2px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 25px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; color: #eee; background: #333; }
-    th, td { border: 1px solid #444; padding: 10px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
-# 광고 및 공통 함수 로직 (기존과 동일하되 return 값 최적화)
+translator = Translator()
+
 def get_youtube_client(custom_key=None):
     selected_key = custom_key if custom_key else API_KEYS[st.session_state.key_index]
     return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=selected_key)
@@ -87,9 +72,9 @@ def generate_sena_report(region_name, video_type, results, keywords):
     avg_viral = statistics.mean([v['v_point'] for v in results])
     top_k = [k for k, c in Counter(keywords).most_common(3)]
     k_str = ", ".join(top_k)
-    return f"""
+    report_html = f"""
 <div class="report-container">
-<div class="report-header">🚩 세나 팀장의 현장형 실행 리포트</div>
+<div style="font-size: 1.7rem; font-weight: 900; color: #ff4b4b; border-bottom: 2px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 25px;">🚩 세나 팀장의 현장형 실행 리포트</div>
 <div style="font-size: 0.9rem; color: #888; margin-bottom: 20px;">2026 {region_name} {video_type} 시장 | 데이터 기반 의사결정 완료</div>
 <div style="font-size: 1.2rem; font-weight: bold; color: #ffeb3b; margin-top: 25px; margin-bottom: 12px;">📊 1. [데이터 추출] 핵심 지표 요약</div>
 <div style="background: #25282c; padding: 18px; border-radius: 12px; line-height: 1.8; font-size: 0.95rem; color: #eee; border: 1px solid #333;">
@@ -102,13 +87,14 @@ def generate_sena_report(region_name, video_type, results, keywords):
 시청자들은 지금 <b>"{top_k[0] if top_k else '이 주제'}"</b>에 대해 단순히 보는 게 아니라 <b>'자기 얘기'</b>라고 느껴서 댓글창으로 달려오고 있어. 상위권 영상들은 전부 <b>'공감'</b> 아니면 <b>'비교'</b>를 건드려.
 </div>
 </div>"""
+    return report_html
 
 def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
     youtube = get_youtube_client(api_key)
     is_shorts = "Shorts" in v_type
     is_popular_mode = not topic_text.strip()
     collected, next_token = [], None
-    for _ in range(5): # 딥 스캔 횟수 조절
+    for _ in range(5):
         try:
             if not is_popular_mode:
                 try: trans_q = translator.translate(topic_text, dest=r_info['lang']).text
@@ -116,8 +102,7 @@ def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
                 req = youtube.search().list(part="snippet", q=f"{trans_q} {'#shorts' if is_shorts else ''}", type="video", videoDuration="short" if is_shorts else "any", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
             else:
                 if is_shorts:
-                    country_q = {"KR": "쇼츠", "US": "Shorts", "JP": "ショート"}
-                    req = youtube.search().list(part="snippet", q=f"#shorts {country_q.get(r_info['code'], '')}", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
+                    req = youtube.search().list(part="snippet", q=f"#shorts", type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
                 else:
                     req = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=r_info['code'], maxResults=50, pageToken=next_token)
             res = req.execute()
@@ -159,11 +144,10 @@ def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
     report = generate_sena_report(r_info['code'], "Shorts" if is_shorts else "Long-form", final, kws)
     return final, (len(final)/v_count)*100 if v_count > 0 else 0, report
 
-# --- UI 레이아웃 ---
-components.html("<div style='background:#f1f3f4; height:90px; line-height:90px; text-align:center; color:#999; border:1px solid #ddd; border-radius:5px;'>AD AREA (90px)</div>", height=90)
+# --- 메인 UI ---
+components.html("<div style='background:#f1f3f4; height:90px; line-height:90px; text-align:center; color:#999; border:1px solid #ddd; border-radius:5px;'>AD AREA</div>", height=90)
 st.title("📡 글로벌 트렌드")
 
-# 사이드바
 st.sidebar.header("📊 분석 설정")
 region_map = {"한국 🇰🇷": {"code": "KR", "lang": "ko"}, "미국 🇺🇸": {"code": "US", "lang": "en"}, "일본 🇯🇵": {"code": "JP", "lang": "ja"} }
 region_name = st.sidebar.selectbox("📍 타겟 시장", list(region_map.keys()))
@@ -180,7 +164,7 @@ access_key = st.sidebar.text_input("🔑 VIP 액세스 키", type="password")
 st.sidebar.markdown("---")
 with st.sidebar:
     st.write("📢 Sponsored")
-    components.html("<div style='background:#f1f3f4; height:600px; line-height:600px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>SIDEBAR AD</div>", height=600)
+    components.html("<div style='background:#f1f3f4; height:600px; line-height:600px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>VERTICAL AD</div>", height=600)
 
 if search_clicked or not topic.strip():
     access_granted = True
@@ -203,8 +187,14 @@ if search_clicked or not topic.strip():
                                 <a href="{v['url']}" target="_blank" class="thumb-link"><img src="{v['thumbnail']}"></a>
                                 <div style="margin-top:10px;"><span class="v-status {s_class}">{v['status']}</span></div>
                                 <div class="v-title">{v['title']}</div>
-                                <div class="v-meta"><b>{v['channel']}</b><br>조회수: {v['view_count']:,}회<br>공개일: {v['date']}</div>
-                                <div class="v-insight-box">🌐 <b>Viral Point:</b> <span class="stat-val">{v['v_point']:,}</span></div>
+                                <div class="v-meta">
+                                    <b>{v['channel']}</b><br>
+                                    조회수: {v['view_count']:,}회<br>
+                                    공개일: {v['date']}
+                                </div>
+                                <div class="v-insight-box">
+                                    🌐 <b>Viral Point:</b> <span style="color:#1a73e8; font-weight:800; font-size:1.1rem;">{v['v_point']:,}</span>
+                                </div>
                             </div>
                             """, unsafe_allow_html=True)
                     st.markdown("---")
@@ -212,24 +202,9 @@ if search_clicked or not topic.strip():
                     with bc2: components.html("<div style='background:#f1f3f4; height:250px; line-height:250px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>BOTTOM AD</div>", height=250)
                     st.markdown(report, unsafe_allow_html=True)
             except Exception as e:
-                st.error(f"오류: {e}")
-```
-
-### 2단계: 블로거(Blogger) 삽입 코드 수정
-
-블로거 페이지에서 앱이 흰 화면으로 나오는 문제를 해결하기 위해, 아래 코드를 **02 페이지 [HTML 보기]**에 다시 붙여넣어 주세요. 높이를 `auto`가 아닌 충분히 큰 숫자로 고정하고 스크롤을 허용했습니다.
-
-```html
-<!-- 블로거 오류 수정용 앱 삽입 코드 -->
-<div style="width: 100%; overflow: hidden; border-radius: 15px; border: 1px solid #eee;">
-    <iframe 
-        src="https://yt-01-test.streamlit.app/?embed=true" 
-        style="width: 100%; height: 1600px; border: none;" 
-        scrolling="yes"
-        allow="autoplay; fullscreen">
-    </iframe>
-</div>
-
-<p style="text-align: center; color: #999; font-size: 13px; margin-top: 15px;">
-    * 앱 로딩이 완료될 때까지 잠시만 기다려 주세요 (최대 10초 소요).
-</p>
+                if "quotaExceeded" in str(e):
+                    if st.session_state.key_index < len(API_KEYS) - 1:
+                        st.session_state.key_index += 1
+                        time.sleep(1); st.rerun()
+                    else: st.error("🚨 모든 할당량 소진.")
+                else: st.error(f"오류: {e}")
