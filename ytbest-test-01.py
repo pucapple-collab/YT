@@ -88,7 +88,7 @@ def generate_sena_report(region_name, video_type, results, keywords):
     k_str = ", ".join(top_k)
     return f"""
 <div class="report-container">
-<div style="font-size: 1.7rem; font-weight: 900; color: #ff4b4b; border-bottom: 2px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 25px;">🚩 세나 팀장의 현장형 실행 리포트</div>
+<div style="font-size: 1.7rem; font-weight: 900; color: #ff4b4b; border-bottom: 2px solid #ff4b4b; padding-bottom: 10px; margin-bottom: 25px;">리포트</div>
 <div style="font-size: 0.9rem; color: #888; margin-bottom: 20px;">2026 {region_name} {video_type} 시장 | 글로벌 중복 데이터 제거 완료</div>
 <div style="font-size: 1.2rem; font-weight: bold; color: #ffeb3b; margin-top: 25px; margin-bottom: 12px;">📊 1. [데이터 추출] 핵심 지표 요약</div>
 <div style="background: #25282c; padding: 18px; border-radius: 12px; line-height: 1.8; font-size: 0.95rem; color: #eee; border: 1px solid #333;">
@@ -208,7 +208,7 @@ if search_clicked or not topic.strip():
         st.sidebar.error("❌ VIP 키가 필요합니다.")
     
     if access_granted:
-        with st.spinner('세나 팀장이 데이터를 딥 스캔하는 중...'):
+        with st.spinner('데이터를 딥 스캔하는 중...'):
             try:
                 final_res, acc, report = fetch_videos(personal_key if personal_key else None, topic, video_type, sel_region, count)
                 if final_res:
