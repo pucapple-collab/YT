@@ -26,7 +26,7 @@ st.set_page_config(page_title="Team SENA: Trend Intelligence", layout="wide")
 if 'key_index' not in st.session_state:
     st.session_state.key_index = 0
 
-# --- CSS 디자인 (공백 및 찌그러짐 완벽 방어) ---
+# --- CSS 디자인 (찌그러짐 방지 및 가독성 최적화) ---
 st.markdown("""
 <style>
     .video-card { 
@@ -61,18 +61,12 @@ def parse_duration(duration):
     if seconds: total += int(seconds.group(1))
     return total
 
-# --- 정체성 필터 함수들 ---
-def has_korean(text):
-    return bool(re.search(r'[가-힣]', text))
-
-def has_japanese(text):
-    return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', text))
-
+# --- [로직 보완] 국가별 언어 정체성 필터 ---
+def has_korean(text): return bool(re.search(r'[가-힣]', text))
+def has_japanese(text): return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', text))
 def is_strictly_non_us(title, channel):
-    # 힌두어 문자열 감지 (인도 차단)
-    if bool(re.search(r'[\u0900-\u097F]', title + channel)): return True
-    # 대형 인도 채널 블랙리스트
-    blacklist = ['t-series', 'set india', 'zee music', 'sony pal', 'colors tv', 'goldmines', 'hybe', 'smtown'] # K-POP도 미국순도위해 포함가능
+    if bool(re.search(r'[\u0900-\u097F]', title + channel)): return True # 힌두어 감지
+    blacklist = ['t-series', 'set india', 'zee music', 'sony pal', 'colors tv', 'goldmines']
     combined = (title + channel).lower()
     return any(k in combined for k in blacklist)
 
@@ -80,6 +74,7 @@ def calculate_v_point(views, likes, comments):
     if views == 0: return 0
     return int((views * 0.001) * (1 + (likes/views*10) + (comments/views*50)))
 
+# --- [세나 팀장 리포트: 1번, 3번만 유지] ---
 def generate_sena_report(region_name, video_type, results, keywords):
     if not results: return ""
     avg_views = statistics.mean([v['view_raw'] for v in results])
@@ -108,8 +103,8 @@ def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
     is_popular_mode = not topic_text.strip()
     collected, next_token = [], None
     
-    # [수정] 딥 스캐닝 강화 (일본/미국 데이터 확보용)
-    scan_limit = 8 if is_shorts else 3
+    # 딥 스캐닝 강화 (나라별 차별화를 위해 넉넉히 수집)
+    scan_limit = 10 if is_shorts else 5
     for _ in range(scan_limit):
         try:
             if not is_popular_mode:
@@ -119,16 +114,17 @@ def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
                 req = youtube.search().list(part="snippet", q=q_param, type="video", videoDuration="short" if is_shorts else "any", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
             else:
                 if is_shorts:
-                    # [수정] 일본 숏폼 미출력 해결을 위해 쿼리 다양화
-                    jp_q = "#shorts #日本人" if r_info['code'] == 'JP' else "#shorts"
-                    req = youtube.search().list(part="snippet", q=jp_q, type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
+                    if r_info['code'] == 'KR': country_q = "#shorts #쇼츠"
+                    elif r_info['code'] == 'JP': country_q = "#shorts #日本人"
+                    else: country_q = "#shorts"
+                    req = youtube.search().list(part="snippet", q=country_q, type="video", videoDuration="short", regionCode=r_info['code'], relevanceLanguage=r_info['lang'], order="viewCount", maxResults=50, pageToken=next_token)
                 else:
                     req = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=r_info['code'], maxResults=50, pageToken=next_token)
             
             res = req.execute()
             collected.extend(res.get('items', []))
             next_token = res.get('nextPageToken')
-            if not next_token or len(collected) >= 300: break
+            if not next_token or len(collected) >= 400: break
         except Exception: break
 
     v_ids = [i['id']['videoId'] if isinstance(i['id'], dict) else i['id'] for i in collected]
@@ -147,17 +143,17 @@ def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
         p_date = datetime.strptime(i['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%SZ")
         days = (now - p_date).days
         
-        # [정합성 필터링 강화]
         if days > 365 or (not is_shorts and d_sec < 120) or (is_shorts and d_sec > 120): continue
-        # 한국: 한글 필수 / 일본: 일본어 필수 / 미국: 인도 차단
-        if r_info['code'] == 'KR' and is_shorts and not has_korean(t+c): continue
-        if r_info['code'] == 'JP' and is_shorts and not has_japanese(t+c): continue
-        if r_info['code'] == 'US' and is_shorts and is_strictly_non_us(t, c): continue
+        
+        # [핵심 보완] 모든 형태(롱폼 포함)에 대해 국가별 언어 정체성 필터 적용 (중복 방지)
+        if r_info['code'] == 'KR' and not has_korean(t+c): continue
+        if r_info['code'] == 'JP' and not has_japanese(t+c): continue
+        if r_info['code'] == 'US' and is_strictly_non_us(t, c): continue
 
         v = int(i['statistics'].get('viewCount', 0))
         l = int(i['statistics'].get('likeCount', 0)) if 'likeCount' in i['statistics'] else 0
         cm = int(i['statistics'].get('commentCount', 0)) if 'commentCount' in i['statistics'] else 0
-        if days > 30 and (v < 500000 or (l+cm)/v < 0.02): continue
+        if days > 30 and (v < 300000 or (l+cm)/v < 0.015): continue # 기준 약간 완화하여 데이터 확보
 
         vp = calculate_v_point(v, l, cm)
         tier = 1 if days <= 10 else (2 if days <= 30 else 3)
@@ -190,7 +186,7 @@ access_key = st.sidebar.text_input("🔑 VIP 액세스 키", type="password")
 st.sidebar.markdown("---")
 with st.sidebar:
     st.write("📢 Sponsored")
-    components.html("<div style='background:#f1f3f4; height:600px; line-height:600px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>SIDEBAR AD</div>", height=600)
+    components.html("<div style='background:#f1f3f4; height:600px; line-height:600px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>VERTICAL AD</div>", height=600)
 
 if search_clicked or not topic.strip():
     access_granted = True
@@ -199,7 +195,7 @@ if search_clicked or not topic.strip():
         st.sidebar.error("❌ VIP 키가 필요합니다.")
     
     if access_granted:
-        with st.spinner('세나 팀장이 데이터 분석 중...'):
+        with st.spinner('세나 팀장이 데이터를 딥 스캔하는 중...'):
             try:
                 final_res, acc, report = fetch_videos(personal_key if personal_key else None, topic, video_type, sel_region, count)
                 if final_res:
@@ -224,14 +220,10 @@ if search_clicked or not topic.strip():
                             </div>
                             """, unsafe_allow_html=True)
                     
-                    # [수정] 리포트 먼저 출력
                     st.markdown(report, unsafe_allow_html=True)
-                    
-                    # [수정] BOTTOM AD를 가장 마지막으로 이동
                     st.markdown("---")
                     bc1, bc2 = st.columns([3, 1])
                     with bc2: components.html("<div style='background:#f1f3f4; height:250px; line-height:250px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>BOTTOM AD</div>", height=250)
-                    
             except Exception as e:
                 if "quotaExceeded" in str(e):
                     if not personal_key and st.session_state.key_index < len(API_KEYS) - 1:
