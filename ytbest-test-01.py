@@ -9,11 +9,15 @@ import random
 import time
 import streamlit.components.v1 as components
 
-# --- [설정] API 키 관리 ---
+# --- [설정] API 키 관리 (5개 키 로테이션 시스템) ---
 API_KEYS = [
-    "AIzaSyAZeKYF34snfhN1UY3EZAHMmv_IcVvKhAc", 
-    "AIzaSyBNMVMMfFI5b7GNEXjoEuOLdX_zQ8XjsCc"
+    "AIzaSyCS0ITaVrJ4D8bbYS8zxWpLIN7h5qpz47Q", # 1
+    "AIzaSyDOm5iXZPgVVQiD9UrrhGrW_X1goigl0eU", # 2
+    "AIzaSyCANj0BHbejmyaxFR7TLbOggOeykQe3-a8", # 3
+    "AIzaSyAovyzahHB-Bw2oZ4x4eXblIzws_3mXKL0", # 4
+    "AIzaSyAN_J7dDXuThijWabzxEZXnjjXSvNMO2hw"  # 5
 ]
+
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 MASTER_ACCESS_KEY = "CLOUD-ENT-VIP" 
@@ -73,6 +77,7 @@ def calculate_v_point(views, likes, comments):
     if views == 0: return 0
     return int((views * 0.001) * (1 + (likes/views*10) + (comments/views*50)))
 
+# --- [팀장 세나의 리포트 엔진] ---
 def generate_sena_report(region_name, video_type, results, keywords):
     if not results: return ""
     avg_views = statistics.mean([v['view_raw'] for v in results])
@@ -97,6 +102,9 @@ def generate_sena_report(region_name, video_type, results, keywords):
 <div class="section-content">
 시청자들은 지금 <b>"{top_k[0] if top_k else '이 주제'}"</b>에 대해 단순히 보는 게 아니라 <b>'자기 얘기'</b>라고 느껴서 댓글창으로 달려오고 있어.<br>
 👉 <b>심리 분석:</b> 상위권 영상들은 전부 <b>'공감'</b> 아니면 <b>'비교'</b>를 건드려. "너는 어때?"라고 묻는 순간 Viral Point 폭발하는 구조야.
+</div>
+<div style="margin-top:30px; text-align:center; font-weight:bold; color:#ff4b4b; border:1px solid #ff4b4b; padding:15px; border-radius:10px;">
+💡 10년 차 세나 팀장의 한 줄 팁: "조회수는 알고리즘이 주고, 바이럴은 댓글이 만든다. 시청자 손가락을 움직이게 만들어!"
 </div>
 </div>
 """
@@ -167,14 +175,11 @@ def fetch_videos(api_key, topic_text, v_type, r_info, v_count):
     report = generate_sena_report(r_info['code'], "Shorts" if is_shorts else "Long-form", final, kws)
     return final, (len(final)/v_count)*100 if v_count > 0 else 0, report
 
-# --- UI 레이아웃 시작 ---
-
-# 1. 본문 상단 광고 (타이틀 위)
-components.html("<div style='background:#f1f3f4; height:90px; line-height:90px; text-align:center; color:#999; border:1px solid #ddd; border-radius:5px;'>TOP AD UNIT (90px)</div>", height=90)
-
+# --- UI 레이아웃 ---
+components.html("<div style='background:#f1f3f4; height:90px; line-height:90px; text-align:center; color:#999; border:1px solid #ddd; border-radius:5px;'>TOP AD UNIT</div>", height=90)
 st.title("📡 글로벌 트렌드")
 
-# 사이드바 설정
+# 사이드바
 st.sidebar.header("📊 마케팅 분석 설정")
 region_map = {"한국 🇰🇷": {"code": "KR", "lang": "ko"}, "미국 🇺🇸": {"code": "US", "lang": "en"}, "일본 🇯🇵": {"code": "JP", "lang": "ja"} }
 region_name = st.sidebar.selectbox("📍 타겟 시장", list(region_map.keys()))
@@ -183,23 +188,18 @@ video_type = st.sidebar.radio("📱 콘텐츠 포맷", ["롱폼 (2분 이상)", 
 count = st.sidebar.slider("🔢 분석 샘플", 1, 30, 1)
 topic = st.sidebar.text_input("🔍 분석 키워드", placeholder="공란: 실시간 인기 수집")
 
-# 분석 시작 버튼
 search_clicked = st.sidebar.button("🚀 분석 시작", use_container_width=True)
 
-# 할당량 해결용 개인 키 입력창
 with st.sidebar.expander("⚙️ 할당량 소진 시 본인 키 사용"):
     personal_key = st.text_input("개인 API Key 입력", type="password")
 
-# [수정] VIP 액세스 키 위치: 분석 버튼 아래, 광고 위
 access_key = st.sidebar.text_input("🔑 VIP 액세스 키 (유료)", type="password")
 
-# [수정] 왼쪽 광고 위치: VIP 키 아래
 st.sidebar.markdown("---")
 with st.sidebar:
     st.write("📢 Sponsored")
     components.html("<div style='background:#f1f3f4; height:600px; line-height:600px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>VERTICAL AD</div>", height=600)
 
-# --- 결과 출력 로직 ---
 if search_clicked or not topic.strip():
     access_granted = True
     if topic.strip() and access_key != MASTER_ACCESS_KEY:
@@ -209,7 +209,7 @@ if search_clicked or not topic.strip():
     if not access_granted:
         st.warning("🔒 특정 키워드 분석은 권한이 필요합니다.")
     else:
-        with st.spinner('데이터를 딥 스캔하는 중...'):
+        with st.spinner('딥 스캔하는 중...'):
             try:
                 final_res, acc, report = fetch_videos(personal_key if personal_key else None, topic, video_type, sel_region, count)
                 if not final_res: st.warning("데이터가 없습니다.")
@@ -227,19 +227,15 @@ if search_clicked or not topic.strip():
                                 <div class="v-insight-box">🌐 <b>Viral Point:</b> <span style="color:#1a73e8; font-weight:800;">{v['v_point']:,}</span></div>
                             </div>
                             """, unsafe_allow_html=True)
-                    
-                    # 2. 본문 하단 광고 (리스트 아래, 리포트 위)
                     st.markdown("---")
-                    b_c1, b_c2 = st.columns([3, 1])
-                    with b_c2:
-                        components.html("<div style='background:#f1f3f4; height:250px; line-height:250px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>BOTTOM AD</div>", height=250)
-                    
-                    # 리포트 출력
+                    bc1, bc2 = st.columns([3, 1])
+                    with bc2: components.html("<div style='background:#f1f3f4; height:250px; line-height:250px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>BOTTOM AD</div>", height=250)
                     st.markdown(report, unsafe_allow_html=True)
             except Exception as e:
                 if "quotaExceeded" in str(e):
                     if not personal_key and st.session_state.key_index < len(API_KEYS) - 1:
                         st.session_state.key_index += 1
-                        st.rerun()
-                    else: st.error("🚨 할당량 소진. 본인의 API 또는 VIP(구매) 키를 입력해 주세요.")
+                        st.toast("🔄 할당량 소진! 다음 키로 전환 중...")
+                        time.sleep(1); st.rerun()
+                    else: st.error("🚨 모든 할당량 소진. 본인의 API 키를 입력해 주세요.")
                 else: st.error(f"오류: {e}")
