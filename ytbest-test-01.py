@@ -82,7 +82,7 @@ def generate_sena_report(region_name, video_type, results, keywords):
     
     report_html = f"""
 <div class="report-container">
-<div class="report-header">🚩 세나 팀장의 현장형 실행 리포트</div>
+<div class="report-header">리포트</div>
 <div style="font-size: 0.9rem; color: #888; margin-bottom: 20px;">2026 {region_name} {video_type} 시장 | 데이터 기반 의사결정 완료</div>
 <div class="section-title">📊 1. [데이터 추출] 핵심 지표 요약</div>
 <div class="section-content">
@@ -209,7 +209,7 @@ if search_clicked or not topic.strip():
     if not access_granted:
         st.warning("🔒 특정 키워드 분석은 권한이 필요합니다.")
     else:
-        with st.spinner('세나 팀장이 데이터를 딥 스캔하는 중...'):
+        with st.spinner('데이터를 딥 스캔하는 중...'):
             try:
                 final_res, acc, report = fetch_videos(personal_key if personal_key else None, topic, video_type, sel_region, count)
                 if not final_res: st.warning("데이터가 없습니다.")
@@ -234,12 +234,12 @@ if search_clicked or not topic.strip():
                     with b_c2:
                         components.html("<div style='background:#f1f3f4; height:250px; line-height:250px; text-align:center; color:#999; border:1px solid #ddd; border-radius:10px;'>BOTTOM AD</div>", height=250)
                     
-                    # 세나 리포트 출력
+                    # 리포트 출력
                     st.markdown(report, unsafe_allow_html=True)
             except Exception as e:
                 if "quotaExceeded" in str(e):
                     if not personal_key and st.session_state.key_index < len(API_KEYS) - 1:
                         st.session_state.key_index += 1
                         st.rerun()
-                    else: st.error("🚨 할당량 소진. 본인의 API 키를 입력해 주세요.")
+                    else: st.error("🚨 할당량 소진. 본인의 API 또는 VIP(구매) 키를 입력해 주세요.")
                 else: st.error(f"오류: {e}")
